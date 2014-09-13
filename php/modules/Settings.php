@@ -27,11 +27,10 @@ class Settings extends Module {
 		self::dependencies(isset($this->database));
 
 		# Execute query
-		$query		= Database::prepare($this->database, "SELECT * FROM ?", array(LYCHEE_TABLE_SETTINGS));
-		$settings	= $this->database->query($query);
+		$settings = $this->database->query("SELECT * FROM ".LYCHEE_TABLE_SETTINGS);
 
 		# Add each to return
-		while ($setting = $settings->fetch_object()) $return[$setting->key] = $setting->value;
+		while ($setting = $settings->fetchObject()) $return[$setting->key] = $setting->value;
 
 		# Fallback for versions below v2.5
 		if (!isset($return['plugins'])) $return['plugins'] = '';
@@ -77,11 +76,15 @@ class Settings extends Module {
 		}
 
 		# Execute query
-		$query	= Database::prepare($this->database, "UPDATE ? SET value = '?' WHERE `key` = 'username'", array(LYCHEE_TABLE_SETTINGS, $username));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'username'");
+		if ($stmt === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
+			return false;
+		}
+        $result = $stmt->execute(array($username));
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;
@@ -98,11 +101,15 @@ class Settings extends Module {
 		# Execute query
 		# Do not prepare $password because it is hashed and save
 		# Preparing (escaping) the password would destroy the hash
-		$query	= Database::prepare($this->database, "UPDATE ? SET value = '$password' WHERE `key` = 'password'", array(LYCHEE_TABLE_SETTINGS));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'password'");
+		if ($stmt === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
+			return false;
+		}
+        $result = $stmt->execute(array($password));
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;

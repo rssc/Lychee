@@ -65,35 +65,36 @@ class Album extends Module {
 		switch ($this->albumIDs) {
 
 			case 'f':	$return['public'] = false;
-						$query = Database::prepare($this->database, "SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ? WHERE star = 1 " . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE star = 1 " . $this->settings['sorting']);
 						break;
 
 			case 's':	$return['public'] = false;
-						$query = Database::prepare($this->database, "SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ? WHERE public = 1 " . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE public = 1 " . $this->settings['sorting']);
 						break;
 
 			case 'r':	$return['public'] = false;
-						$query = Database::prepare($this->database, "SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ? WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
+                        # FIXME: Only works in MySQL
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
 						break;
 
 			case '0':	$return['public'] = false;
-						$query = Database::prepare($this->database, "SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ? WHERE album = 0 " . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
 						break;
 
-			default:	$query	= Database::prepare($this->database, "SELECT * FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-						$albums = $this->database->query($query);
-						$return = $albums->fetch_assoc();
-						$return['sysdate']		= date('d M. Y', $return['sysstamp']);
-						$return['password']		= ($return['password']=='' ? false : true);
-						$query = Database::prepare($this->database, "SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ? WHERE album = '?' " . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS, $this->albumIDs));
+			default:	$stmt = $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = '?' LIMIT 1");
+                        $albums = $stmt->execute(array($this->albumIDs));
+						$return = $albums->fetch(PDO::FETCH_ASSOC);
+						$return['sysdate'] = date('d M. Y', $return['sysstamp']);
+						$return['password'] = ($return['password']=='' ? false : true);
+						$stmt = $this->database->prepare("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $this->settings['sorting']);
+                        $photos = $stmt->execute(array($this->albumIDs));
 						break;
 
 		}
 
 		# Get photos
-		$photos				= $this->database->query($query);
 		$previousPhotoID	= '';
-		while ($photo = $photos->fetch_assoc()) {
+		while ($photo = $photos->fetch(PDO::FETCH_ASSOC)) {
 
 			# Parse
 			$photo['sysdate']			= date('d F Y', substr($photo['id'], 0, -4));
@@ -156,18 +157,26 @@ class Album extends Module {
 		if ($public===false) $return = $this->getSmartInfo();
 
 		# Albums query
-		$query = Database::prepare($this->database, 'SELECT id, title, public, sysstamp, password FROM ? WHERE public = 1 AND visible <> 0', array(LYCHEE_TABLE_ALBUMS));
-		if ($public===false) $query = Database::prepare($this->database, 'SELECT id, title, public, sysstamp, password FROM ?', array(LYCHEE_TABLE_ALBUMS));
+		$albums = $this->database->query('SELECT id, title, public, sysstamp, password FROM '.LYCHEE_TABLE_ALBUMS.' WHERE public = 1 AND visible <> 0');
+		if ($public===false)
+        {
+            $albums = $this->database->query('SELECT id, title, public, sysstamp, password FROM '.LYCHEE_TABLE_ALBUMS);
+        }
 
-		# Execute query
-		$albums = $this->database->query($query);
-		if (!$albums) {
-			Log::error($database, __METHOD__, __LINE__, 'Could not get all albums (' . $database->error . ')');
-			exit('Error: ' . $this->database->error);
+		# check query status
+		if ($albums === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, 'Could not get all albums (' . print_r($this->database->errorInfo(), TRUE) . ')');
+			exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
 		}
 
+        # prepare thumbnail statement
+        $stmtThumbs = $this->database->prepare("SELECT thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3");
+		if ($stmtThumbs === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, 'Could not get prepare statement for thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+			exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
+		}
 		# For each album
-		while ($album = $albums->fetch_assoc()) {
+		while ($album = $albums->fetch(PDO::FETCH_ASSOC)) {
 
 			# Parse info
 			$album['sysdate']	= date('F Y', $album['sysstamp']);
@@ -177,12 +186,11 @@ class Album extends Module {
 			if (($public===true&&$album['password']===false)||($public===false)) {
 
 				# Execute query
-				$query	= Database::prepare($this->database, "SELECT thumbUrl FROM ? WHERE album = '?' ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3", array(LYCHEE_TABLE_PHOTOS, $album['id']));
-				$thumbs	= $this->database->query($query);
+				$thumbs = $stmtThumbs->execute(array($album['id']));
 
 				# For each thumb
 				$k = 0;
-				while ($thumb = $thumbs->fetch_object()) {
+				while ($thumb = $thumbs->fetchObject()) {
 					$album["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $thumb->thumbUrl;
 					$k++;
 				}
@@ -195,7 +203,7 @@ class Album extends Module {
 		}
 
 		# Num of albums
-		$return['num'] = $albums->num_rows;
+		$return['num'] = $albums->rowCount();
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -210,52 +218,54 @@ class Album extends Module {
 		self::dependencies(isset($this->database, $this->settings));
 
 		# Unsorted
-		$query		= Database::prepare($this->database, 'SELECT thumbUrl FROM ? WHERE album = 0 ' . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
-		$unsorted	= $this->database->query($query);
+		$unsorted   = $this->database->query("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
+        if ($unsorted === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get unsorted thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
-		while($row = $unsorted->fetch_object()) {
+		while($row = $unsorted->fetchObject()) {
 			if ($i<3) {
 				$return["unsortedThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row->thumbUrl;
 				$i++;
 			} else break;
 		}
-		$return['unsortedNum'] = $unsorted->num_rows;
+		$return['unsortedNum'] = $unsorted->rowCount();
 
 		# Public
-		$query		= Database::prepare($this->database, 'SELECT thumbUrl FROM ? WHERE public = 1 ' . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
-		$public		= $this->database->query($query);
+		$public     = $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS.' WHERE public = 1 ' . $this->settings['sorting']);
+        if ($public === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get public thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
-		while($row2 = $public->fetch_object()) {
+		while($row2 = $public->fetchObject()) {
 			if ($i<3) {
 				$return["publicThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumbUrl;
 				$i++;
 			} else break;
 		}
-		$return['publicNum'] = $public->num_rows;
+		$return['publicNum'] = $public->rowCount();
 
 		# Starred
-		$query		= Database::prepare($this->database, 'SELECT thumbUrl FROM ? WHERE star = 1 ' . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
-		$starred	= $this->database->query($query);
+		$starred	= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS.' WHERE star = 1 ' . $this->settings['sorting']);
+        if ($starred === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get starred thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
-		while($row3 = $starred->fetch_object()) {
+		while($row3 = $starred->fetchObject()) {
 			if ($i<3) {
 				$return["starredThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumbUrl;
 				$i++;
 			} else break;
 		}
-		$return['starredNum'] = $starred->num_rows;
+		$return['starredNum'] = $starred->rowCount();
 
 		# Recent
-		$query		= Database::prepare($this->database, 'SELECT thumbUrl FROM ? WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) ' . $this->settings['sorting'], array(LYCHEE_TABLE_PHOTOS));
-		$recent		= $this->database->query($query);
+        # FIXME: Only works on MySQL
+		#$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(NOW() - INTERVAL '1' DAY) " . $this->settings['sorting']);
+		$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+        if ($recent === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
-		while($row3 = $recent->fetch_object()) {
+		while($row3 = $recent->fetchObject()) {
 			if ($i<3) {
 				$return["recentThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumbUrl;
 				$i++;
 			} else break;
 		}
-		$return['recentNum'] = $recent->num_rows;
+		$return['recentNum'] = $recent->rowCount();
 
 		return $return;
 

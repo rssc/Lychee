@@ -10,34 +10,44 @@ if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 class Database extends Module {
 
-	static function connect($host = 'localhost', $user, $password, $name = 'lychee') {
+	static function connect($host = 'localhost', $user, $password, $name = 'lychee', $type = 'pgsql') {
 
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
 
-		$database = new mysqli($host, $user, $password);
+		try
+		{
+			$database = new PDO($type.':host=localhost;dbname='.$name, $user, $password);
+		}
+		catch (PDOException $e)
+		{
+			exit ('Error: '.$e->getMessage());
+		}
 
 		# Check connection
-		if ($database->connect_errno) exit('Error: ' . $database->connect_error);
+		#if ($database->connect_errno) exit('Error: ' . $database->connect_error);
 
 		# Avoid sql injection on older MySQL versions by using GBK
-		if ($database->server_version<50500) $database->set_charset('GBK');
-		else $database->set_charset("utf8");
+		#if ($database->server_version<50500) $database->set_charset('GBK');
+		#else $database->set_charset("utf8");
 
 		# Check database
-		if (!$database->select_db($name))
-			if (!Database::createDatabase($database, $name)) exit('Error: Could not create database!');
+		#if (!$database->select_db($name))
+		#	if (!Database::createDatabase($database, $name)) exit('Error: Could not create database!');
 
 		# Check tables
-		$query = Database::prepare($database, 'SELECT * FROM ?, ?, ?, ? LIMIT 0', array(LYCHEE_TABLE_PHOTOS, LYCHEE_TABLE_ALBUMS, LYCHEE_TABLE_SETTINGS, LYCHEE_TABLE_LOG));
-		if (!$database->query($query))
+		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_PHOTOS.', '.LYCHEE_TABLE_ALBUMS.', '.LYCHEE_TABLE_SETTINGS.', '.LYCHEE_TABLE_LOG.' LIMIT 0');
+        if ($result === FALSE)
+        {
+            # tables do not exist, create them
 			if (!Database::createTables($database)) exit('Error: Could not create tables!');
+        }
 
 		return $database;
 
 	}
 
-	static function update($database, $dbName, $version = 0) {
+	static function update($database, $dbName, $version = 0, $type = 'pgsql') {
 
 		# Check dependencies
 		Module::dependencies(isset($database, $dbName));
@@ -59,7 +69,7 @@ class Database extends Module {
 			if (isset($version)&&$update<=$version) continue;
 
 			# Load update
-			include(__DIR__ . '/../database/update_' . $update . '.php');
+			include(__DIR__ . '/../database/update_' . $update . '_'.$type.'.php');
 
 		}
 
@@ -67,32 +77,40 @@ class Database extends Module {
 
 	}
 
-	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '') {
+	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '', $type = 'pgsql') {
 
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
 
-		$database = new mysqli($host, $user, $password);
+        try
+        {
+            $database = new PDO($type.':host=localhost;dbname='.$name, $user, $password);
+        }
+        catch (PDOException $e)
+        {
+            exit ('Warning: Connection failed: '.$e->getMessage());
+        }
 
-		if ($database->connect_errno) return 'Warning: Connection failed!';
+		#if ($database->connect_errno) return 'Warning: Connection failed!';
 
 		# Check if database exists
-		if (!$database->select_db($name)) {
+		#if (!$database->select_db($name)) {
 
 			# Database doesn't exist
 			# Check if user can create a database
-			$result = $database->query('CREATE DATABASE lychee_dbcheck');
-			if (!$result) return 'Warning: Creation failed!';
-			else $database->query('DROP DATABASE lychee_dbcheck');
+			#$result = $database->query('CREATE DATABASE lychee_dbcheck');
+			#if (!$result) return 'Warning: Creation failed!';
+			#else $database->query('DROP DATABASE lychee_dbcheck');
 
-		}
+		#}
 
 		# Escape data
-		$host		= mysqli_real_escape_string($database, $host);
-		$user		= mysqli_real_escape_string($database, $user);
-		$password	= mysqli_real_escape_string($database, $password);
-		$name		= mysqli_real_escape_string($database, $name);
-		$prefix		= mysqli_real_escape_string($database, $prefix);
+		$host		= $database->quote($host);
+		$user		= $database->quote($user);
+		$password	= $database->quote($password);
+		$name		= $database->quote($name);
+        # FIXME: stricter check for prefix (i.e., only characters and potentially numbers)
+		$prefix		= $database->quote($prefix);
 
 		# Save config.php
 $config = "<?php
@@ -106,11 +124,11 @@ $config = "<?php
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Database configuration
-\$dbHost = '$host'; # Host of the database
-\$dbUser = '$user'; # Username of the database
-\$dbPassword = '$password'; # Password of the database
-\$dbName = '$name'; # Database name
-\$dbTablePrefix = '$prefix'; # Table prefix
+\$dbHost = $host; # Host of the database
+\$dbUser = $user; # Username of the database
+\$dbPassword = $password; # Password of the database
+\$dbName = $name; # Database name
+\$dbTablePrefix = $prefix; # Table prefix
 
 ?>";
 
@@ -126,42 +144,51 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 		# Check dependencies
 		Module::dependencies(isset($database, $name));
 
-		# Create database
-		$result = $database->query("CREATE DATABASE IF NOT EXISTS $name;");
-		$database->select_db($name);
+        # not implemented
+        return false;
 
-		if (!$database->select_db($name)||!$result) return false;
-		return true;
+		# Create database
+		#$result = $database->query("CREATE DATABASE IF NOT EXISTS $name;");
+		#$database->select_db($name);
+
+		#if (!$database->select_db($name)||!$result) return false;
+		#return true;
 
 	}
 
-	static function createTables($database) {
+	static function createTables($database, $type='pgsql') {
 
 		# Check dependencies
 		Module::dependencies(isset($database));
 
 		# Create log
-		$exist = Database::prepare($database, 'SELECT * FROM ? LIMIT 0', array(LYCHEE_TABLE_LOG));
-		if (!$database->query($exist)) {
+		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_LOG.' LIMIT 0');
+        if ($result === FALSE)
+        {
 
 			# Read file
-			$file	= __DIR__ . '/../database/log_table.sql';
+			$file	= __DIR__ . '/../database/log_table_'.$type.'.sql';
 			$query	= @file_get_contents($file);
 
 			if (!isset($query)||$query===false) return false;
 
 			# Create table
-			$query = Database::prepare($database, $query, array(LYCHEE_TABLE_LOG));
-			if (!$database->query($query)) return false;
+            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$result = $database->exec($query);
+            if ($result === FALSE)
+            {
+                return false;
+            }
 
 		}
 
 		# Create settings
-		$exist = Database::prepare($database, 'SELECT * FROM ? LIMIT 0', array(LYCHEE_TABLE_SETTINGS));
-		if (!$database->query($exist)) {
+		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_SETTINGS.' LIMIT 0');
+		if ($result === FALSE) {
 
 			# Read file
-			$file	= __DIR__ . '/../database/settings_table.sql';
+			$file	= __DIR__ . '/../database/settings_table_'.$type.'.sql';
 			$query	= @file_get_contents($file);
 
 			if (!isset($query)||$query===false) {
@@ -170,14 +197,17 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-			$query = Database::prepare($database, $query, array(LYCHEE_TABLE_SETTINGS));
-			if (!$database->query($query)) {
-				Log::error($database, __METHOD__, __LINE__, $database->error);
-				return false;
-			}
+            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$result = $database->exec($query);
+            if ($result === FALSE)
+            {
+				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+                return false;
+            }
 
 			# Read file
-			$file	= __DIR__ . '/../database/settings_content.sql';
+			$file	= __DIR__ . '/../database/settings_content_'.$type.'.sql';
 			$query	= @file_get_contents($file);
 
 			if (!isset($query)||$query===false) {
@@ -186,20 +216,22 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Add content
-			$query = Database::prepare($database, $query, array(LYCHEE_TABLE_SETTINGS));
-			if (!$database->query($query)) {
-				Log::error($database, __METHOD__, __LINE__, $database->error);
+            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$result = $database->exec($query);
+            if ($result === FALSE)
+            {
+				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}
 
 		}
 
 		# Create albums
-		$exist = Database::prepare($database, 'SELECT * FROM ? LIMIT 0', array(LYCHEE_TABLE_ALBUMS));
-		if (!$database->query($exist)) {
+		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_ALBUMS.' LIMIT 0');
+		if ($result === FALSE) {
 
 			# Read file
-			$file	= __DIR__ . '/../database/albums_table.sql';
+			$file	= __DIR__ . '/../database/albums_table_'.$type.'.sql';
 			$query	= @file_get_contents($file);
 
 			if (!isset($query)||$query===false) {
@@ -208,20 +240,23 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-			$query = Database::prepare($database, $query, array(LYCHEE_TABLE_ALBUMS));
-			if (!$database->query($query)) {
-				Log::error($database, __METHOD__, __LINE__, $database->error);
+            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$result = $database->exec($query);
+            if ($result === FALSE)
+            {
+				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}
 
 		}
 
 		# Create photos
-		$exist = Database::prepare($database, 'SELECT * FROM ? LIMIT 0', array(LYCHEE_TABLE_PHOTOS));
-		if (!$database->query($exist)) {
+		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_PHOTOS.' LIMIT 0');
+		if ($result === FALSE) {
 
 			# Read file
-			$file	= __DIR__ . '/../database/photos_table.sql';
+			$file	= __DIR__ . '/../database/photos_table_'.$type.'.sql';
 			$query	= @file_get_contents($file);
 
 			if (!isset($query)||$query===false) {
@@ -230,9 +265,12 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-			$query = Database::prepare($database, $query, array(LYCHEE_TABLE_PHOTOS));
-			if (!$database->query($query)) {
-				Log::error($database, __METHOD__, __LINE__, $database->error);
+            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$result = $database->exec($query);
+            if ($result === FALSE)
+            {
+				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}
 
@@ -244,10 +282,10 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 	static function setVersion($database, $version) {
 
-		$query	= Database::prepare($database, "UPDATE ? SET value = '?' WHERE `key` = 'version'", array(LYCHEE_TABLE_SETTINGS, $version));
-		$result = $database->query($query);
-		if (!$result) {
-			Log::error($database, __METHOD__, __LINE__, 'Could not update database (' . $database->error . ')');
+		$stmt = $database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'version'");
+		$result = $stmt->execute(array($version));
+		if ($result === FALSE) {
+			Log::error($database, __METHOD__, __LINE__, 'Could not update database (' . $database->errorInfo() . ')');
 			return false;
 		}
 

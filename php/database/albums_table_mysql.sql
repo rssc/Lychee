@@ -2,7 +2,7 @@
 # Version 2.5
 # ------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS `?` (
+CREATE TABLE IF NOT EXISTS `_PREFIX_lychee_albums` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `title` varchar(50) NOT NULL,
   `description` varchar(1000) DEFAULT '',

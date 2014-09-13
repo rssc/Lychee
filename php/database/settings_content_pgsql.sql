@@ -1,8 +1,4 @@
-# Content of table lychee_settings
-# Version 2.5
-# ------------------------------------------------------------
-
-INSERT INTO `?` (`key`, `value`)
+INSERT INTO _PREFIX_lychee_settings (key, value)
 VALUES
   ('version',''),
   ('username',''),
@@ -12,3 +8,4 @@ VALUES
   ('sorting','ORDER BY id DESC'),
   ('dropboxKey',''),
   ('plugins','');
+

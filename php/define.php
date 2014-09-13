@@ -37,6 +37,8 @@ function defineTablePrefix($dbTablePrefix) {
 	if (!isset($dbTablePrefix)||$dbTablePrefix==='') $dbTablePrefix = '';
 	else $dbTablePrefix .= '_';
 
+    # Define prefix
+	define('LYCHEE_TABLE_PREFIX', $dbTablePrefix);
 	# Define tables
 	define('LYCHEE_TABLE_ALBUMS', $dbTablePrefix . 'lychee_albums');
 	define('LYCHEE_TABLE_LOG', $dbTablePrefix . 'lychee_log');

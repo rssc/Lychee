@@ -39,14 +39,18 @@ class Album extends Module {
 
 		# Database
 		$sysstamp	= time();
-		$query		= Database::prepare($this->database, "INSERT INTO ? (title, sysstamp, public, visible) VALUES ('?', '?', '?', '?')", array(LYCHEE_TABLE_ALBUMS, $title, $sysstamp, $public, $visible));
-		$result		= $this->database->query($query);
+		$stmt		= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_ALBUMS." (title, sysstamp, public, visible) VALUES (?, ?, ?, ?)");
+		if ($stmt === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
+			return false;
+		}
+        $result     = $stmt->execute(array($title, $sysstamp, $public, $visible));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
 		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return $this->database->insert_id;
@@ -81,13 +85,14 @@ class Album extends Module {
 						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
 						break;
 
-			default:	$stmt = $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = '?' LIMIT 1");
+			default:	$stmt = $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
                         $albums = $stmt->execute(array($this->albumIDs));
-						$return = $albums->fetch(PDO::FETCH_ASSOC);
+						$return = $stmt->fetch(PDO::FETCH_ASSOC);
 						$return['sysdate'] = date('d M. Y', $return['sysstamp']);
 						$return['password'] = ($return['password']=='' ? false : true);
 						$stmt = $this->database->prepare("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $this->settings['sorting']);
                         $photos = $stmt->execute(array($this->albumIDs));
+                        $photos = $stmt;
 						break;
 
 		}
@@ -115,7 +120,7 @@ class Album extends Module {
 
 		}
 
-		if ($photos->num_rows===0) {
+		if ($photos->rowCount()===0) {
 
 			# Album empty
 			$return['content'] = false;
@@ -136,7 +141,7 @@ class Album extends Module {
 		}
 
 		$return['id']	= $this->albumIDs;
-		$return['num']	= $photos->num_rows;
+		$return['num']	= $photos->rowCount();
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -170,7 +175,7 @@ class Album extends Module {
 		}
 
         # prepare thumbnail statement
-        $stmtThumbs = $this->database->prepare("SELECT thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3");
+        $stmtThumbs = $this->database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3");
 		if ($stmtThumbs === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, 'Could not get prepare statement for thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 			exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
@@ -186,12 +191,16 @@ class Album extends Module {
 			if (($public===true&&$album['password']===false)||($public===false)) {
 
 				# Execute query
-				$thumbs = $stmtThumbs->execute(array($album['id']));
+				$resultThumbs = $stmtThumbs->execute(array($album['id']));
+		        if ($resultThumbs === FALSE) {
+			        Log::error($this->database, __METHOD__, __LINE__, 'Could not get thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+			        exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
+		        }
 
 				# For each thumb
 				$k = 0;
-				while ($thumb = $thumbs->fetchObject()) {
-					$album["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $thumb->thumbUrl;
+				while ($thumb = $stmtThumbs->fetchObject()) {
+					$album["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $thumb->thumburl;
 					$k++;
 				}
 

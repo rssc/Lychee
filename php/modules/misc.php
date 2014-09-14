@@ -16,19 +16,19 @@ function search($database, $settings, $term) {
 	$return['albums'] = '';
 
 	// Photos
-	$query	= Database::prepare($database, "SELECT id, title, tags, public, star, album, thumbUrl FROM ? WHERE title LIKE '%?%' OR description LIKE '%%' OR tags LIKE '%?%'", array(LYCHEE_TABLE_PHOTOS, $term, $term, $term));
-	$result	= $database->query($query);
-	while($row = $result->fetch_assoc()) {
+	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+    $result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
+	while($row = $stmtP->fetch(PDO::FETCH_ASSOC)) {
 		$return['photos'][$row['id']]				= $row;
-		$return['photos'][$row['id']]['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $row['thumbUrl'];
+		$return['photos'][$row['id']]['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $row['thumburl'];
 		$return['photos'][$row['id']]['sysdate']	= date('d M. Y', substr($row['id'], 0, -4));
 	}
 
 	// Albums
-	$query	= Database::prepare($database, "SELECT id, title, public, sysstamp, password FROM ? WHERE title LIKE '%?%' OR description LIKE '%?%'", array(LYCHEE_TABLE_ALBUMS, $term, $term));
-	$result = $database->query($query);
+	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
+    $result = $stmtA->execute(array('%'.$term.'%', '%'.$term.'%'));
 	$i		= 0;
-	while($row = $result->fetch_object()) {
+	while($row = $stmtA->fetchObject()) {
 
 		// Info
 		$return['albums'][$row->id]['id']		= $row->id;
@@ -38,10 +38,10 @@ function search($database, $settings, $term) {
 		$return['albums'][$row->id]['password']	= ($row->password=='' ? false : true);
 
 		// Thumbs
-		$query		= Database::prepare($database, "SELECT thumbUrl FROM ? WHERE album = '?' " . $settings['sorting'] . " LIMIT 0, 3", array(LYCHEE_TABLE_PHOTOS, $row->id));
-		$result2	= $database->query($query);
+		$stmtT		= $database->prepare("SELECT thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 0, 3");
+        $result2    = $stmtT->execute(array($row->id));
 		$k			= 0;
-		while($row2 = $result2->fetch_object()){
+		while($row2 = $stmtT->fetchObject()){
 			$return['albums'][$row->id]["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumbUrl;
 			$k++;
 		}

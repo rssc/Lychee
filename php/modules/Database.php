@@ -124,6 +124,7 @@ $config = "<?php
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Database configuration
+\$dbType = 'pgsql' # Database type (mysql / pgsql)
 \$dbHost = $host; # Host of the database
 \$dbUser = $user; # Username of the database
 \$dbPassword = $password; # Password of the database
@@ -288,71 +289,6 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			Log::error($database, __METHOD__, __LINE__, 'Could not update database (' . $database->errorInfo() . ')');
 			return false;
 		}
-
-	}
-
-	static function prepare($database, $query, $data) {
-
-		# Check dependencies
-		Module::dependencies(isset($database, $query, $data));
-
-		# Count the number of placeholders and compare it with the number of arguments
-		# If it doesn't match, calculate the difference and skip this number of placeholders before starting the replacement
-		# This avoids problems with placeholders in user-input
-		# $skip = Number of placeholders which need to be skipped
-		$skip	= 0;
-		$num	= array(
-			'placeholder'	=> substr_count($query, '?'),
-			'data'			=> count($data)
-		);
-
-		if (($num['data']-$num['placeholder'])<0) Log::notice($database, __METHOD__, __LINE__, 'Could not completely prepare query. Query has more placeholders than values.');
-
-		foreach ($data as $value) {
-
-			# Escape
-			$value = mysqli_real_escape_string($database, $value);
-
-			# Recalculate number of placeholders
-			$num['placeholder'] = substr_count($query, '?');
-
-			# Calculate number of skips
-			if ($num['placeholder']>$num['data']) $skip = $num['placeholder'] - $num['data'];
-
-			if ($skip>0) {
-
-				# Need to skip $skip placeholders, because the user input contained placeholders
-				# Calculate a substring which does not contain the user placeholders
-				# 1 or -1 is the length of the placeholder (placeholder = ?)
-
-				$pos = -1;
-				for ($i=$skip; $i>0; $i--) $pos = strpos($query, '?', $pos + 1);
-				$pos++;
-
-				$temp	= substr($query, 0, $pos); # First part of $query
-				$query	= substr($query, $pos); # Last part of $query
-
-			}
-
-			# Replace
-			$query = preg_replace('/\?/', $value, $query, 1);
-
-			if ($skip>0) {
-
-				# Reassemble the parts of $query
-				$query = $temp . $query;
-
-			}
-
-			# Reset skip
-			$skip = 0;
-
-			# Decrease number of data elements
-			$num['data']--;
-
-		}
-
-		return $query;
 
 	}
 

@@ -34,8 +34,16 @@ echo('Diagnostics' . PHP_EOL);
 echo('-----------' . PHP_EOL);
 
 # Database
-$database = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
-if (mysqli_connect_errno()!=0) $error .= ('Error 100: ' . mysqli_connect_errno() . ': ' . mysqli_connect_error() . '' . PHP_EOL);
+# Database
+try
+{
+	$database = new PDO($dbType.':host=localhost;dbname='.$dbName, $dbUser, $dbPassword);
+}
+catch (PDOException $e)
+{
+	echo 'Error 100: ' . $e->getMessage() . PHP_EOL;
+	exit();
+}
 
 # Load settings
 $settings = new Settings($database);
@@ -48,7 +56,7 @@ if (floatval(phpversion())<5.2)		$error .= ('Error 200: Please upgrade to PHP 5.
 if (!extension_loaded('exif'))		$error .= ('Error 300: PHP exif extension not activated' . PHP_EOL);
 if (!extension_loaded('mbstring'))	$error .= ('Error 301: PHP mbstring extension not activated' . PHP_EOL);
 if (!extension_loaded('gd'))		$error .= ('Error 302: PHP gd extension not activated' . PHP_EOL);
-if (!extension_loaded('mysqli'))	$error .= ('Error 303: PHP mysqli extension not activated' . PHP_EOL);
+//if (!extension_loaded('mysqli'))	$error .= ('Error 303: PHP mysqli extension not activated' . PHP_EOL);
 if (!extension_loaded('json'))		$error .= ('Error 304: PHP json extension not activated' . PHP_EOL);
 if (!extension_loaded('zip'))		$error .= ('Error 305: PHP zip extension not activated' . PHP_EOL);
 
@@ -81,7 +89,7 @@ if (!$settings['dropboxKey']) echo('Warning: Dropbox import not working. No prop
 if (ini_get('max_execution_time')<200&&ini_set('upload_max_filesize', '20M')===false) echo('Warning: You may experience problems when uploading a large amount of photos. Take a look in the FAQ for details.' . PHP_EOL);
 
 # Check mysql version
-if ($database->server_version<50500) echo('Warning: Lychee uses the GBK charset to avoid sql injections on your MySQL version. Please update to MySQL 5.5 or higher to enable UTF-8 support.' . PHP_EOL);
+//if ($database->server_version<50500) echo('Warning: Lychee uses the GBK charset to avoid sql injections on your MySQL version. Please update to MySQL 5.5 or higher to enable UTF-8 support.' . PHP_EOL);
 
 # Output
 if ($error=='') echo('No critical problems found. Lychee should work without problems!' . PHP_EOL);
@@ -108,7 +116,7 @@ echo('Lychee Version:  ' . $json['version'] . PHP_EOL);
 echo('DB Version:      ' . $settings['version'] . PHP_EOL);
 echo('System:          ' . PHP_OS . PHP_EOL);
 echo('PHP Version:     ' . floatval(phpversion()) . PHP_EOL);
-echo('MySQL Version:   ' . $database->server_version . PHP_EOL);
+echo('Server Version:  ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME) . ': '. $database->getAttribute(PDO::ATTR_SERVER_VERSION) . PHP_EOL);
 echo('Imagick:         ' . $imagick . PHP_EOL);
 echo('Imagick Active:  ' . $settings['imagick'] . PHP_EOL);
 echo('Imagick Version: ' . $imagickVersion['versionNumber'] . PHP_EOL);

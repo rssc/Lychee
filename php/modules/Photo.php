@@ -783,14 +783,14 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Set album
-		$query	= Database::prepare($this->database, "UPDATE ? SET album = '?' WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $albumID, $this->photoIDs));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET album = ? WHERE id IN (?)");
+        $result = $stmt->execute(array($albumID, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;
@@ -875,15 +875,16 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photos
-		$query	= Database::prepare($this->database, "SELECT id, url, thumburl, checksum FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		if (!$photos) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		$stmt	= $this->database->prepare("SELECT id, url, thumburl, checksum FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
+        $result = $stmt->execute(array($this->photoIDs));
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 
 		# For each photo
-		while ($photo = $photos->fetch_object()) {
+        $stmt2	= $this->database->prepare("DELETE FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
+		while ($photo = $stmt->fetchObject()) {
 
 			# Check if other photos are referring to this images
 			# If so, only delete the db entry
@@ -914,10 +915,9 @@ class Photo extends Module {
 			}
 
 			# Delete db entry
-			$query	= Database::prepare($this->database, "DELETE FROM ? WHERE id = '?'", array(LYCHEE_TABLE_PHOTOS, $photo->id));
-			$delete	= $this->database->query($query);
-			if (!$delete) {
-				Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			$delete = $stmt2->execute(array($photo->id));
+			if ($delete === FALSE) {
+				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 				return false;
 			}
 

@@ -16,7 +16,7 @@ function search($database, $settings, $term) {
 	$return['albums'] = '';
 
 	// Photos
-	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
     $result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
 	while($row = $stmtP->fetch(PDO::FETCH_ASSOC)) {
 		$return['photos'][$row['id']]				= $row;
@@ -38,11 +38,11 @@ function search($database, $settings, $term) {
 		$return['albums'][$row->id]['password']	= ($row->password=='' ? false : true);
 
 		// Thumbs
-		$stmtT		= $database->prepare("SELECT thumbUrl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 0, 3");
+		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 0, 3");
         $result2    = $stmtT->execute(array($row->id));
 		$k			= 0;
 		while($row2 = $stmtT->fetchObject()){
-			$return['albums'][$row->id]["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumbUrl;
+			$return['albums'][$row->id]["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumburl;
 			$k++;
 		}
 
@@ -58,9 +58,9 @@ function getGraphHeader($database, $photoID) {
 
 	if (!isset($database, $photoID)) return false;
 
-	$query	= Database::prepare($database, "SELECT title, description, url FROM ? WHERE id = '?'", array(LYCHEE_TABLE_PHOTOS, $photoID));
-	$result	= $database->query($query);
-	$row	= $result->fetch_object();
+	$stmt	= $database->prepare("SELECT title, description, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
+    $result = $stmt->execute(array($photoID));
+	$row	= $stmt->fetchObject();
 
 	$parseUrl	= parse_url("http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
 	$picture	= $parseUrl['scheme']."://".$parseUrl['host'].$parseUrl['path']."/../uploads/big/".$row->url;

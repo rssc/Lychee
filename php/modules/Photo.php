@@ -723,9 +723,9 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photo
-		$query	= Database::prepare($this->database, "SELECT public, album FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		$photo	= $photos->fetch_object();
+		$stmt	= $this->database->prepare("SELECT public, album FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->photoIDs));
+		$photo	= $stmt->fetchObject();
 
 		# Check if public
 		if ($photo->public==1) return true;
@@ -752,22 +752,22 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get public
-		$query	= Database::prepare($this->database, "SELECT public FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		$photo	= $photos->fetch_object();
+		$stmt	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->photoIDs));
+		$photo	= $stmt->fetchObject();
 
 		# Invert public
 		$public = ($photo->public==0 ? 1 : 0);
 
 		# Set public
-		$query	= Database::prepare($this->database, "UPDATE ? SET public = '?' WHERE id = '?'", array(LYCHEE_TABLE_PHOTOS, $public, $this->photoIDs));
-		$result	= $this->database->query($query);
+		$stmt2	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET public = ? WHERE id = ?");
+        $result = $stmt2->execute(array($public, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo, TRUE));
 			return false;
 		}
 		return true;

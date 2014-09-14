@@ -413,14 +413,14 @@ class Album extends Module {
 		if (strlen($title)>50) $title = substr($title, 0, 50);
 
 		# Execute query
-		$query	= Database::prepare($this->database, "UPDATE ? SET title = '?' WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $title, $this->albumIDs));
-		$result = $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET title = ? WHERE id IN (?)");
+        $result = $stmt->execute(array($title, $this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;
@@ -465,9 +465,9 @@ class Album extends Module {
 		if ($this->albumIDs==='0'||$this->albumIDs==='s'||$this->albumIDs==='f') return false;
 
 		# Execute query
-		$query	= Database::prepare($this->database, "SELECT public FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-		$albums	= $this->database->query($query);
-		$album	= $albums->fetch_object();
+		$stmt	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->albumIDs));
+		$album	= $stmt->fetchObject();
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());

@@ -510,10 +510,10 @@ class Album extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get public
-		$query	= Database::prepare($this->database, "SELECT id, public FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-		$albums	= $this->database->query($query);
+		$stmt	= $this->database->prepare("SELECT id, public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id IN (?)");
+        $stmt->execute(array($this->albumIDs));
 
-		while ($album = $albums->fetch_object()) {
+		while ($album = $stmt->fetchObject()) {
 
 			# Invert public
 			$public = ($album->public=='0' ? 1 : 0);
@@ -525,19 +525,19 @@ class Album extends Module {
 			$downloadable = ($downloadable==='true' ? 1 : 0);
 
 			# Set public
-			$query	= Database::prepare($this->database, "UPDATE ? SET public = '?', visible = '?', downloadable = '?', password = NULL WHERE id = '?'", array(LYCHEE_TABLE_ALBUMS, $public, $visible, $downloadable, $album->id));
-			$result	= $this->database->query($query);
-			if (!$result) {
-				Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET public = ?, visible = ?, downloadable = ?, password = NULL WHERE id = ?");
+            $result = $stmt->execute(array($public, $visible, $downloadable, $album->id));
+			if ($result === FALSE) {
+				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 				return false;
 			}
 
 			# Reset permissions for photos
 			if ($public===1) {
-				$query	= Database::prepare($this->database, "UPDATE ? SET public = 0 WHERE album = '?'", array(LYCHEE_TABLE_PHOTOS, $album->id));
-				$result	= $this->database->query($query);
-				if (!$result) {
-					Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+				$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET public = 0 WHERE album = ?");
+                $result = $stmt->execute(array($album->id));
+				if ($result === FALSE) {
+					Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 					return false;
 				}
 			}
@@ -570,22 +570,22 @@ class Album extends Module {
 			# Set hashed password
 			# Do not prepare $password because it is hashed and save
 			# Preparing (escaping) the password would destroy the hash
-			$query	= Database::prepare($this->database, "UPDATE ? SET password = '$password' WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-			$result	= $this->database->query($query);
+			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET password = ? WHERE id IN (?)");
+            $result = $stmt->execute(array($password, $this->albumIDs));
 
 		} else {
 
 			# Unset password
-			$query	= Database::prepare($this->database, "UPDATE ? SET password = NULL WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-			$result	= $this->database->query($query);
+			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET password = NULL WHERE id IN (?)");
+            $result = $stmt->execute(array($this->albumIDs));
 
 		}
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;
@@ -601,9 +601,9 @@ class Album extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Execute query
-		$query	= Database::prepare($this->database, "SELECT password FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-		$albums	= $this->database->query($query);
-		$album	= $albums->fetch_object();
+		$stmt	= $this->database->prepare("SELECT password FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->albumIDs));
+		$album	= $stmt->fetchObject();
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());

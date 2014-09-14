@@ -447,14 +447,14 @@ class Album extends Module {
 		if (strlen($description)>1000) $description = substr($description, 0, 1000);
 
 		# Execute query
-		$query	= Database::prepare($this->database, "UPDATE ? SET description = '?' WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $description, $this->albumIDs));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET description = ? WHERE id IN (?)");
+        $result = $stmt->execute(array($description, $this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;

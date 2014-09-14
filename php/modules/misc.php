@@ -15,6 +15,8 @@ function search($database, $settings, $term) {
 
 	$return['albums'] = '';
 
+    # FIXME: For PostgreSQL use ILIKE instead of LIKE
+
 	// Photos
 	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
     $result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
@@ -38,7 +40,7 @@ function search($database, $settings, $term) {
 		$return['albums'][$row->id]['password']	= ($row->password=='' ? false : true);
 
 		// Thumbs
-		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 0, 3");
+		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 3 OFFSET 0");
         $result2    = $stmtT->execute(array($row->id));
 		$k			= 0;
 		while($row2 = $stmtT->fetchObject()){

@@ -49,11 +49,12 @@ class Album extends Module {
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
+		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
-		return $this->database->insert_id;
+        # FIXME: Only works with PostgreSQL
+		return $this->database->lastInsertId(LYCHEE_TABLE_ALBUMS.'_id_seq');
 
 	}
 

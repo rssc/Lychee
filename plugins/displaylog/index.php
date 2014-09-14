@@ -30,25 +30,29 @@ defineTablePrefix($dbTablePrefix);
 $result = '';
 
 # Database
-$database = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
-
-if (mysqli_connect_errno()!=0) {
-	echo 'Error 100: ' . mysqli_connect_errno() . ': ' . mysqli_connect_error() . '' . PHP_EOL;
+try
+{
+	$database = new PDO($dbType.':host=localhost;dbname='.$dbName, $dbUser, $dbPassword);
+}
+catch (PDOException $e)
+{
+	echo 'Error 100: ' . $e->getMessage() . PHP_EOL;
 	exit();
 }
 
 # Result
-$query	= Database::prepare($database, "SELECT FROM_UNIXTIME(time), type, function, line, text FROM ?", array(LYCHEE_TABLE_LOG));
-$result	= $database->query($query);
+# FIXME: Only works in PostgreSQL
+//$result	= $database->query("SELECT FROM_UNIXTIME(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
+$result	= $database->query("SELECT to_timestamp(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
 
 # Output
-if ($result->num_rows===0) {
+if ($result->rowCount()===0) {
 
 	echo('Everything looks fine, Lychee has not reported any problems!' . PHP_EOL . PHP_EOL);
 
 } else {
 
-	while($row = $result->fetch_row()) {
+	while($row = $result->fetch()) {
 
 		# Encode result before printing
 		$row = array_map("htmlentities", $row);

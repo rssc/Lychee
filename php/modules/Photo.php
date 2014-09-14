@@ -687,19 +687,19 @@ class Photo extends Module {
 		$error	= false;
 
 		# Get photos
-		$query	= Database::prepare($this->database, "SELECT id, star FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
+		$stmt	= $this->database->prepare("SELECT id, star FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
+        $result = $stmt->execute(array($this->photoIDs));
 
 		# For each photo
-		while ($photo = $photos->fetch_object()) {
+        $stmtStar = $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET star = ? WHERE id = ?");
+		while ($photo = $stmt->fetchObject()) {
 
 			# Invert star
 			$star = ($photo->star==0 ? 1 : 0);
 
 			# Set star
-			$query	= Database::prepare($this->database, "UPDATE ? SET star = '?' WHERE id = '?'", array(LYCHEE_TABLE_PHOTOS, $star, $photo->id));
-			$star	= $this->database->query($query);
-			if (!$star) $error = true;
+			$result	= $stmtStar->execute(array($star, $photo->id));
+			if ($result === FALSE) $error = true;
 
 		}
 
@@ -707,7 +707,7 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 1, func_get_args());
 
 		if ($error===true) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;

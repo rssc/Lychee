@@ -175,12 +175,12 @@ class Photo extends Module {
 			}
 
 			# Save to DB
-			$values	= array(LYCHEE_TABLE_PHOTOS, $id, $info['title'], $photo_name, $description, $tags, $info['type'], $info['width'], $info['height'], $info['size'], $info['iso'], $info['aperture'], $info['make'], $info['model'], $info['shutter'], $info['focal'], $info['takestamp'], $path_thumb, $albumID, $public, $star, $checksum);
-			$query	= Database::prepare($this->database, "INSERT INTO ? (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumbUrl, album, public, star, checksum) VALUES ('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?')", $values);
-			$result = $this->database->query($query);
+			$values	= array($id, $info['title'], $photo_name, $description, $tags, $info['type'], $info['width'], $info['height'], $info['size'], $info['iso'], $info['aperture'], $info['make'], $info['model'], $info['shutter'], $info['focal'], $info['takestamp'], $path_thumb, $albumID, $public, $star, $checksum);
+			$stmt	= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $result = $stmt->execute($values);
 
-			if (!$result) {
-				Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			if ($result === FALSE) {
+				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 				exit('Error: Could not save photo in database!');
 			}
 
@@ -199,29 +199,36 @@ class Photo extends Module {
 		self::dependencies(isset($this->database, $checksum));
 
 		# Exclude $photoID from select when $photoID is set
-		if (isset($photoID)) $query = Database::prepare($this->database, "SELECT id, url, thumbUrl FROM ? WHERE checksum = '?' AND id <> '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $checksum, $photoID));
-		else $query = Database::prepare($this->database, "SELECT id, url, thumbUrl FROM ? WHERE checksum = '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $checksum));
+		if (isset($photoID))
+        {
+            $stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? AND id <> ? LIMIT 1");
+            $result = $stmt->execute(array($checksum, $photoID));
+        }
+		else
+        {
+            $stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? LIMIT 1");
+            $result = $stmt->execute(array($checksum));
+        }
 
-		$result	= $this->database->query($query);
-
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, 'Could not check for existing photos with the same checksum');
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, 'Could not check for existing photos with the same checksum: ' . print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 
-		if ($result->num_rows===1) {
+		if ($stmt->rowCount()===1) {
 
-			$result = $result->fetch_object();
+			$result = $stmt->fetchObject();
 
 			$return = array(
 				'photo_name'	=> $result->url,
 				'path'			=> LYCHEE_UPLOADS_BIG . $result->url,
-				'path_thumb'	=> $result->thumbUrl
+				'path_thumb'	=> $result->thumburl
 			);
 
 			return $return;
 
 		}
+        # FIXME: what if rowCount() > 1?
 
 		return false;
 
@@ -434,9 +441,9 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photo
-		$query	= Database::prepare($this->database, "SELECT * FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		$photo	= $photos->fetch_assoc();
+		$stmt	= $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->photoIDs));
+		$photo	= $stmt->fetch(PDO::FETCH_ASSOC);
 
 		# Parse photo
 		$photo['sysdate'] = date('d M. Y', substr($photo['id'], 0, -4));
@@ -444,7 +451,7 @@ class Photo extends Module {
 
 		# Parse url
 		$photo['url']		= LYCHEE_URL_UPLOADS_BIG . $photo['url'];
-		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $photo['thumbUrl'];
+		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $photo['thumburl'];
 
 		if ($albumID!='false') {
 
@@ -453,9 +460,9 @@ class Photo extends Module {
 			if ($photo['album']!=0) {
 
 				# Get album
-				$query	= Database::prepare($this->database, "SELECT public FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $photo['album']));
-				$albums	= $this->database->query($query);
-				$album	= $albums->fetch_assoc();
+				$stmt2	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
+                $result2 = $stmt2->execute(array($photo['album']));
+				$album	= $stmt2->fetch(PDO::FETCH_ASSOC);
 
 				# Parse album
 				$photo['public'] = ($album['public']=='1' ? '2' : $photo['public']);
@@ -577,9 +584,9 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photo
-		$query	= Database::prepare($this->database, "SELECT title, url FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		$photo	= $photos->fetch_object();
+		$stmt	= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->photoIDs));
+		$photo	= $stmt->fetchObject();
 
 		# Get extension
 		$extension = getExtension($photo->url);
@@ -846,7 +853,7 @@ class Photo extends Module {
 
 			# Duplicate entry
 			$values		= array(LYCHEE_TABLE_PHOTOS, $id, LYCHEE_TABLE_PHOTOS, $photo->id);
-			$query		= Database::prepare($this->database, "INSERT INTO ? (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumbUrl, album, public, star, checksum) SELECT '?' AS id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumbUrl, album, public, star, checksum FROM ? WHERE id = '?'", $values);
+			$query		= Database::prepare($this->database, "INSERT INTO ? (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) SELECT '?' AS id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum FROM ? WHERE id = '?'", $values);
 			$duplicate	= $this->database->query($query);
 			if (!$duplicate) {
 				Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
@@ -868,7 +875,7 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photos
-		$query	= Database::prepare($this->database, "SELECT id, url, thumbUrl, checksum FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
+		$query	= Database::prepare($this->database, "SELECT id, url, thumburl, checksum FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
 		$photos	= $this->database->query($query);
 		if (!$photos) {
 			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
@@ -883,7 +890,7 @@ class Photo extends Module {
 			if ($this->exists($photo->checksum, $photo->id)===false) {
 
 				# Get retina thumb url
-				$thumbUrl2x = explode(".", $photo->thumbUrl);
+				$thumbUrl2x = explode(".", $photo->thumburl);
 				$thumbUrl2x = $thumbUrl2x[0] . '@2x.' . $thumbUrl2x[1];
 
 				# Delete big
@@ -893,7 +900,7 @@ class Photo extends Module {
 				}
 
 				# Delete thumb
-				if (file_exists(LYCHEE_UPLOADS_THUMB . $photo->thumbUrl)&&!unlink(LYCHEE_UPLOADS_THUMB . $photo->thumbUrl)) {
+				if (file_exists(LYCHEE_UPLOADS_THUMB . $photo->thumburl)&&!unlink(LYCHEE_UPLOADS_THUMB . $photo->thumburl)) {
 					Log::error($this->database, __METHOD__, __LINE__, 'Could not delete photo in uploads/thumb/');
 					return false;
 				}

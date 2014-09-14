@@ -625,11 +625,16 @@ class Album extends Module {
 		$error = false;
 
 		# Execute query
-		$query	= Database::prepare($this->database, "SELECT id FROM ? WHERE album IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->albumIDs));
-		$photos = $this->database->query($query);
+		$stmt	= $this->database->prepare("SELECT id FROM ".LYCHEE_TABLE_PHOTOS." WHERE album IN (?)");
+        $result = $stmt->execute(array($this->albumIDs));
+
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
+			return false;
+		}
 
 		# For each album delete photo
-		while ($row = $photos->fetch_object()) {
+		while ($row = $stmt->fetchObject()) {
 
 			$photo = new Photo($this->database, $this->plugins, null, $row->id);
 			if (!$photo->delete($row->id)) $error = true;
@@ -637,17 +642,19 @@ class Album extends Module {
 		}
 
 		# Delete albums
-		$query	= Database::prepare($this->database, "DELETE FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("DELETE FROM ".LYCHEE_TABLE_ALBUMS." WHERE id IN (?)");
+        $result = $stmt->execute(array($this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if ($error) return false;
 		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
+
+		if ($error) return false;
+
 		return true;
 
 	}

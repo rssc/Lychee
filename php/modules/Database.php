@@ -124,7 +124,7 @@ $config = "<?php
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Database configuration
-\$dbType = 'pgsql' # Database type (mysql / pgsql)
+\$dbType = 'pgsql'; # Database type (mysql / pgsql)
 \$dbHost = $host; # Host of the database
 \$dbUser = $user; # Username of the database
 \$dbPassword = $password; # Password of the database

@@ -661,14 +661,14 @@ class Photo extends Module {
 		if (strlen($description)>1000) $description = substr($description, 0, 1000);
 
 		# Set description
-		$query	= Database::prepare($this->database, "UPDATE ? SET description = '?' WHERE id IN ('?')", array(LYCHEE_TABLE_PHOTOS, $description, $this->photoIDs));
-		$result	= $this->database->query($query);
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET description = ? WHERE id IN (?)");
+        $result = $stmt->execute(array($description, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		if (!$result) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 		return true;

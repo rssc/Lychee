@@ -70,20 +70,20 @@ class Album extends Module {
 		switch ($this->albumIDs) {
 
 			case 'f':	$return['public'] = false;
-						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE star = 1 " . $this->settings['sorting']);
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE star = 1 " . $this->settings['sorting']);
 						break;
 
 			case 's':	$return['public'] = false;
-						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE public = 1 " . $this->settings['sorting']);
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE public = 1 " . $this->settings['sorting']);
 						break;
 
 			case 'r':	$return['public'] = false;
                         # FIXME: Only works in MySQL
-						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
 						break;
 
 			case '0':	$return['public'] = false;
-						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
+						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
 						break;
 
 			default:	$stmt = $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
@@ -91,7 +91,7 @@ class Album extends Module {
 						$return = $stmt->fetch(PDO::FETCH_ASSOC);
 						$return['sysdate'] = date('d M. Y', $return['sysstamp']);
 						$return['password'] = ($return['password']=='' ? false : true);
-						$stmt = $this->database->prepare("SELECT id, title, tags, public, star, album, thumbUrl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $this->settings['sorting']);
+						$stmt = $this->database->prepare("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $this->settings['sorting']);
                         $photos = $stmt->execute(array($this->albumIDs));
                         $photos = $stmt;
 						break;
@@ -106,7 +106,7 @@ class Album extends Module {
 			$photo['sysdate']			= date('d F Y', substr($photo['id'], 0, -4));
 			$photo['previousPhoto']		= $previousPhotoID;
 			$photo['nextPhoto']			= '';
-			$photo['thumbUrl']			= LYCHEE_URL_UPLOADS_THUMB . $photo['thumbUrl'];
+			$photo['thumbUrl']			= LYCHEE_URL_UPLOADS_THUMB . $photo['thumburl'];
 
 			if (isset($photo['takestamp'])&&$photo['takestamp']!=='0') {
 				$photo['cameraDate']	= 1;
@@ -233,7 +233,7 @@ class Album extends Module {
 		$i			= 0;
 		while($row = $unsorted->fetchObject()) {
 			if ($i<3) {
-				$return["unsortedThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row->thumbUrl;
+				$return["unsortedThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row->thumburl;
 				$i++;
 			} else break;
 		}
@@ -245,7 +245,7 @@ class Album extends Module {
 		$i			= 0;
 		while($row2 = $public->fetchObject()) {
 			if ($i<3) {
-				$return["publicThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumbUrl;
+				$return["publicThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumburl;
 				$i++;
 			} else break;
 		}
@@ -257,7 +257,7 @@ class Album extends Module {
 		$i			= 0;
 		while($row3 = $starred->fetchObject()) {
 			if ($i<3) {
-				$return["starredThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumbUrl;
+				$return["starredThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumburl;
 				$i++;
 			} else break;
 		}
@@ -271,7 +271,7 @@ class Album extends Module {
 		$i			= 0;
 		while($row3 = $recent->fetchObject()) {
 			if ($i<3) {
-				$return["recentThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumbUrl;
+				$return["recentThumb$i"] = LYCHEE_URL_UPLOADS_THUMB . $row3->thumburl;
 				$i++;
 			} else break;
 		}

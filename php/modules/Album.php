@@ -78,8 +78,9 @@ class Album extends Module {
 						break;
 
 			case 'r':	$return['public'] = false;
-                        # FIXME: Only works in MySQL
-						$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
+                        # FIXME: Only works in PostgreSQL
+						//$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
+                        $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
 						break;
 
 			case '0':	$return['public'] = false;
@@ -298,27 +299,35 @@ class Album extends Module {
 		# Photos query
 		switch($this->albumIDs) {
 			case 's':
-				$photos		= Database::prepare($this->database, 'SELECT title, url FROM ? WHERE public = 1', array(LYCHEE_TABLE_PHOTOS));
+				$photos		= $this->database->query('SELECT title, url FROM '.LYCHEE_TABLE_PHOTOS.' WHERE public = 1');
 				$zipTitle	= 'Public';
 				break;
 			case 'f':
-				$photos		= Database::prepare($this->database, 'SELECT title, url FROM ? WHERE star = 1', array(LYCHEE_TABLE_PHOTOS));
+				$photos		= $this->database->query('SELECT title, url FROM '.LYCHEE_TABLE_PHOTOS.' WHERE star = 1');
 				$zipTitle	= 'Starred';
 				break;
 			case 'r':
-				$photos		= Database::prepare($this->database, 'SELECT title, url FROM ? WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) GROUP BY checksum', array(LYCHEE_TABLE_PHOTOS));
+                # FIXME: GROUP BY checksum??
+				$photos		= $this->database->query("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000"); // GROUP BY checksum");
 				$zipTitle	= 'Recent';
 				break;
 			default:
-				$photos		= Database::prepare($this->database, "SELECT title, url FROM ? WHERE album = '?'", array(LYCHEE_TABLE_PHOTOS, $this->albumIDs));
+				$stmt		= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ?");
+                $result     = $stmt->execute(array($this->albumIDs));
+                $photos     = $stmt;
 				$zipTitle	= 'Unsorted';
 		}
 
+        if ($photos === FALSE)
+        {
+			Log::error($this->database, __METHOD__, __LINE__, 'Could not get photos for archive: ' . print_r($this->database->errorInfo(), TRUE));
+        }
+
 		# Set title
 		if ($this->albumIDs!=0&&is_numeric($this->albumIDs)) {
-			$query = Database::prepare($this->database, "SELECT title FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-			$album = $this->database->query($query);
-			$zipTitle = $album->fetch_object()->title;
+			$stmt2 = $this->database->prepare("SELECT title FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
+            $result = $stmt2->execute(array($this->albumIDs));
+			$zipTitle = $stmt2->fetchObject()->title;
 		}
 
 		# Escape title
@@ -333,18 +342,15 @@ class Album extends Module {
 			return false;
 		}
 
-		# Execute query
-		$photos = $this->database->query($photos);
-
 		# Check if album empty
-		if ($photos->num_rows==0) {
+		if ($photos->rowCount()==0) {
 			Log::error($this->database, __METHOD__, __LINE__, 'Could not create ZipArchive without images');
 			return false;
 		}
 
 		# Parse each path
 		$files = array();
-		while ($photo = $photos->fetch_object()) {
+		while ($photo = $photos->fetchObject()) {
 
 			# Parse url
 			$photo->url = LYCHEE_UPLOADS_BIG . $photo->url;
@@ -489,9 +495,9 @@ class Album extends Module {
 		if ($this->albumIDs==='0'||$this->albumIDs==='s'||$this->albumIDs==='f'||$this->albumIDs==='r') return false;
 
 		# Execute query
-		$query	= Database::prepare($this->database, "SELECT downloadable FROM ? WHERE id = '?' LIMIT 1", array(LYCHEE_TABLE_ALBUMS, $this->albumIDs));
-		$albums	= $this->database->query($query);
-		$album	= $albums->fetch_object();
+		$stmt	= $this->database->prepare("SELECT downloadable FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
+        $result = $stmt->execute(array($this->albumIDs));
+		$album	= $stmt->fetchObject();
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());

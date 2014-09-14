@@ -837,26 +837,26 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Get photos
-		$query	= Database::prepare($this->database, "SELECT id, checksum FROM ? WHERE id IN (?)", array(LYCHEE_TABLE_PHOTOS, $this->photoIDs));
-		$photos	= $this->database->query($query);
-		if (!$photos) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		$stmt	= $this->database->prepare("SELECT id, checksum FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
+        $result = $stmt->execute(array($this->photoIDs));
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 
 		# For each photo
-		while ($photo = $photos->fetch_object()) {
+		while ($photo = $stmt->fetchObject()) {
 
 			# Generate id
 			$id = str_replace('.', '', microtime(true));
 			while(strlen($id)<14) $id .= 0;
 
 			# Duplicate entry
-			$values		= array(LYCHEE_TABLE_PHOTOS, $id, LYCHEE_TABLE_PHOTOS, $photo->id);
-			$query		= Database::prepare($this->database, "INSERT INTO ? (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) SELECT '?' AS id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum FROM ? WHERE id = '?'", $values);
-			$duplicate	= $this->database->query($query);
-			if (!$duplicate) {
-				Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			$values		= array($id, LYCHEE_TABLE_PHOTOS, $photo->id);
+			$stmt2		= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) SELECT ? AS id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum FROM ? WHERE id = ?");
+            $duplicate  = $stmt2->execute($values);
+			if ($duplicate === FALSE) {
+				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo, TRUE));
 				return false;
 			}
 

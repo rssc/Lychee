@@ -76,7 +76,7 @@ class Settings extends Module {
 		}
 
 		# Execute query
-		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'username'");
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'username'");
 		if ($stmt === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
@@ -101,7 +101,7 @@ class Settings extends Module {
 		# Execute query
 		# Do not prepare $password because it is hashed and save
 		# Preparing (escaping) the password would destroy the hash
-		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'password'");
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'password'");
 		if ($stmt === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
@@ -127,7 +127,7 @@ class Settings extends Module {
 		}
 
 		# Execute query
-		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'dropboxKey'");
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'dropboxKey'");
         $result = $stmt->execute(array($key));
 
 		if ($result === FALSE) {
@@ -191,7 +191,7 @@ class Settings extends Module {
 		# Execute query
 		# Do not prepare $sorting because it is a true statement
 		# Preparing (escaping) the sorting would destroy it
-		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'sorting'");
+		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'sorting'");
         $result = $stmt->execute(array($sorting));
 
 		if ($result === FALSE) {

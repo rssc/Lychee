@@ -228,7 +228,6 @@ class Photo extends Module {
 			return $return;
 
 		}
-        # FIXME: what if rowCount() > 1?
 
 		return false;
 

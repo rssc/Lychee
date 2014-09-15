@@ -10,7 +10,7 @@ if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 class Database extends Module {
 
-	static function connect($host = 'localhost', $user, $password, $name = 'lychee', $type = 'pgsql') {
+	static function connect($host = 'localhost', $user, $password, $name = 'lychee', $type = 'mysql') {
 
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
@@ -35,19 +35,28 @@ class Database extends Module {
 		#if (!$database->select_db($name))
 		#	if (!Database::createDatabase($database, $name)) exit('Error: Could not create database!');
 
+        # set mode
+        if ($type === "mysql")
+        {
+            if ($database->exec("SET SESSION sql_mode = ANSI_QUOTES") === FALSE)
+            {
+                error_log('Cannot set MySQL SQL mode: ' . print_r($database->errorInfo(), TRUE));
+            }
+        }
+
 		# Check tables
 		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_PHOTOS.', '.LYCHEE_TABLE_ALBUMS.', '.LYCHEE_TABLE_SETTINGS.', '.LYCHEE_TABLE_LOG.' LIMIT 0');
         if ($result === FALSE)
         {
             # tables do not exist, create them
-			if (!Database::createTables($database)) exit('Error: Could not create tables!');
+			if (!Database::createTables($database, $type)) exit('Error: Could not create tables!');
         }
 
 		return $database;
 
 	}
 
-	static function update($database, $dbName, $version = 0, $type = 'pgsql') {
+	static function update($database, $dbName, $version = 0, $type = 'mysql') {
 
 		# Check dependencies
 		Module::dependencies(isset($database, $dbName));
@@ -77,7 +86,7 @@ class Database extends Module {
 
 	}
 
-	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '', $type = 'pgsql') {
+	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '', $type = 'mysql') {
 
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
@@ -124,7 +133,7 @@ $config = "<?php
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Database configuration
-\$dbType = 'pgsql'; # Database type (mysql / pgsql)
+\$dbType = 'mysql'; # Database type (mysql / pgsql)
 \$dbHost = $host; # Host of the database
 \$dbUser = $user; # Username of the database
 \$dbPassword = $password; # Password of the database
@@ -179,6 +188,7 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			$result = $database->exec($query);
             if ($result === FALSE)
             {
+                error_log(print_r($database->errorInfo(), TRUE));
                 return false;
             }
 
@@ -283,10 +293,10 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 	static function setVersion($database, $version) {
 
-		$stmt = $database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'version'");
+		$stmt = $database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'version'");
 		$result = $stmt->execute(array($version));
 		if ($result === FALSE) {
-			Log::error($database, __METHOD__, __LINE__, 'Could not update database (' . $database->errorInfo() . ')');
+			Log::error($database, __METHOD__, __LINE__, 'Could not update database (' . print_r($database->errorInfo(), TRUE) . ')');
 			return false;
 		}
 

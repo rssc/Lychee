@@ -15,10 +15,20 @@ function search($database, $settings, $term) {
 
 	$return['albums'] = '';
 
-    # FIXME: For PostgreSQL use ILIKE instead of LIKE
-
 	// Photos
-	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+    if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+    {
+    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+    }
+    else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+    {
+    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+    }
+    else
+    {
+        $stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+        Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
+    }
     $result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
 	while($row = $stmtP->fetch(PDO::FETCH_ASSOC)) {
 		$return['photos'][$row['id']]				= $row;

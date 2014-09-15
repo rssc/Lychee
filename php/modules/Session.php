@@ -22,7 +22,7 @@ class Session extends Module {
 
 	}
 
-	public function init($database, $dbName, $public, $version) {
+	public function init($database, $dbName, $public, $version, $dbType) {
 
 		# Check dependencies
 		self::dependencies(isset($this->settings, $public, $version));
@@ -32,7 +32,7 @@ class Session extends Module {
 
 		# Update
 		if (!isset($this->settings['version'])||$this->settings['version']!==$version) {
-			if (!Database::update($database, $dbName, @$this->settings['version'])) {
+			if (!Database::update($database, $dbName, @$this->settings['version'], $dbType)) {
 				Log::error($database, __METHOD__, __LINE__, 'Updating the database failed');
 				exit('Error: Updating the database failed!');
 			}

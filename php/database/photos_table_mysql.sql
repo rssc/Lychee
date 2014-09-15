@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `_PREFIX_lychee_photos` (
   `focal` varchar(20) NOT NULL,
   `takestamp` int(11) DEFAULT NULL,
   `star` tinyint(1) NOT NULL,
-  `thumbUrl` varchar(50) NOT NULL,
+  `thumburl` varchar(50) NOT NULL,
   `album` varchar(30) NOT NULL DEFAULT '0',
   `checksum` VARCHAR(100) DEFAULT NULL,
   PRIMARY KEY (`id`)

@@ -53,8 +53,20 @@ class Album extends Module {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
-        # FIXME: Only works with PostgreSQL
-		return $this->database->lastInsertId(LYCHEE_TABLE_ALBUMS.'_id_seq');
+
+        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+        {
+    		return $this->database->lastInsertId();
+        }
+        else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+        {
+    		return $this->database->lastInsertId(LYCHEE_TABLE_ALBUMS.'_id_seq');
+        }
+        else
+        {
+            Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+            return false;
+        }
 
 	}
 
@@ -78,9 +90,18 @@ class Album extends Module {
 						break;
 
 			case 'r':	$return['public'] = false;
-                        # FIXME: Only works in PostgreSQL
-						//$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
-                        $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+                        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+                        {
+						    $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
+                        }
+                        else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+                        {
+                            $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+                        }
+                        else
+                        {
+                            Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+                        }
 						break;
 
 			case '0':	$return['public'] = false;
@@ -265,9 +286,19 @@ class Album extends Module {
 		$return['starredNum'] = $starred->rowCount();
 
 		# Recent
-        # FIXME: Only works on MySQL
-		#$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(NOW() - INTERVAL '1' DAY) " . $this->settings['sorting']);
-		$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+        {
+		    $recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(NOW() - INTERVAL '1' DAY) " . $this->settings['sorting']);
+        }
+        elseif ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+        {
+    		$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+        }
+        else
+        {
+            Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails, unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+        }
+
         if ($recent === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
 		while($row3 = $recent->fetchObject()) {

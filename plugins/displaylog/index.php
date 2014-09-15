@@ -41,9 +41,19 @@ catch (PDOException $e)
 }
 
 # Result
-# FIXME: Only works in PostgreSQL
-//$result	= $database->query("SELECT FROM_UNIXTIME(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
-$result	= $database->query("SELECT to_timestamp(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
+if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+{
+    $result	= $database->query("SELECT FROM_UNIXTIME(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
+}
+else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+{
+    $result	= $database->query("SELECT to_timestamp(time), type, function, line, text FROM ".LYCHEE_TABLE_LOG);
+}
+else
+{
+    echo 'Error: Unknown database drive: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME);
+    exit();
+}
 
 # Output
 if ($result->rowCount()===0) {

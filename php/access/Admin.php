@@ -235,11 +235,11 @@ class Admin extends Access {
 
 	private function init() {
 
-		global $dbName;
+		global $dbName, $dbType;
 
 		Module::dependencies(isset($_POST['version']));
 		$session = new Session($this->plugins, $this->settings);
-		echo json_encode($session->init($this->database, $dbName, false, $_POST['version']));
+		echo json_encode($session->init($this->database, $dbName, false, $_POST['version'], $dbType));
 
 	}
 

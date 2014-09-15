@@ -107,10 +107,10 @@ class Guest extends Access {
 
 	private function init() {
 
-		global $dbName;
+		global $dbName, $dbType;
 
 		$session = new Session($this->plugins, $this->settings);
-		echo json_encode($session->init($this->database, $dbName, true, $_POST['version']));
+		echo json_encode($session->init($this->database, $dbName, true, $_POST['version'], $dbType));
 
 	}
 

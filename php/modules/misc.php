@@ -22,7 +22,7 @@ function search($database, $settings, $term) {
     }
     else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
     {
-    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title ILIKE ? OR description ILIKE ? OR tags ILIKE ?");
     }
     else
     {
@@ -37,7 +37,18 @@ function search($database, $settings, $term) {
 	}
 
 	// Albums
-	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
+    if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+    {
+    	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
+    }
+    else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+    {
+    	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title ILIKE ? OR description ILIKE ?");
+    }
+    else
+    {
+        Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
+    }
     $result = $stmtA->execute(array('%'.$term.'%', '%'.$term.'%'));
 	$i		= 0;
 	while($row = $stmtA->fetchObject()) {

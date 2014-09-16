@@ -177,7 +177,7 @@ class Photo extends Module {
 			# Save to DB
 			$values	= array($id, $info['title'], $photo_name, $description, $tags, $info['type'], $info['width'], $info['height'], $info['size'], $info['iso'], $info['aperture'], $info['make'], $info['model'], $info['shutter'], $info['focal'], $info['takestamp'], $path_thumb, $albumID, $public, $star, $checksum);
 			$stmt	= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $result = $stmt->execute($values);
+			$result = $stmt->execute($values);
 
 			if ($result === FALSE) {
 				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
@@ -200,15 +200,15 @@ class Photo extends Module {
 
 		# Exclude $photoID from select when $photoID is set
 		if (isset($photoID))
-        {
-            $stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? AND id <> ? LIMIT 1");
-            $result = $stmt->execute(array($checksum, $photoID));
-        }
+		{
+			$stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? AND id <> ? LIMIT 1");
+			$result = $stmt->execute(array($checksum, $photoID));
+		}
 		else
-        {
-            $stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? LIMIT 1");
-            $result = $stmt->execute(array($checksum));
-        }
+		{
+			$stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? LIMIT 1");
+			$result = $stmt->execute(array($checksum));
+		}
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, 'Could not check for existing photos with the same checksum: ' . print_r($this->database->errorInfo(), TRUE));
@@ -441,7 +441,7 @@ class Photo extends Module {
 
 		# Get photo
 		$stmt	= $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		$photo	= $stmt->fetch(PDO::FETCH_ASSOC);
 
 		# Parse photo
@@ -460,7 +460,7 @@ class Photo extends Module {
 
 				# Get album
 				$stmt2	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-                $result2 = $stmt2->execute(array($photo['album']));
+				$result2 = $stmt2->execute(array($photo['album']));
 				$album	= $stmt2->fetch(PDO::FETCH_ASSOC);
 
 				# Parse album
@@ -584,7 +584,7 @@ class Photo extends Module {
 
 		# Get photo
 		$stmt	= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		$photo	= $stmt->fetchObject();
 
 		# Get extension
@@ -634,7 +634,7 @@ class Photo extends Module {
 
 		# Set title
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET title = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($title, $this->photoIDs));
+		$result = $stmt->execute(array($title, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -661,7 +661,7 @@ class Photo extends Module {
 
 		# Set description
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET description = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($description, $this->photoIDs));
+		$result = $stmt->execute(array($description, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -687,10 +687,10 @@ class Photo extends Module {
 
 		# Get photos
 		$stmt	= $this->database->prepare("SELECT id, star FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 
 		# For each photo
-        $stmtStar = $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET star = ? WHERE id = ?");
+		$stmtStar = $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET star = ? WHERE id = ?");
 		while ($photo = $stmt->fetchObject()) {
 
 			# Invert star
@@ -723,7 +723,7 @@ class Photo extends Module {
 
 		# Get photo
 		$stmt	= $this->database->prepare("SELECT public, album FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		$photo	= $stmt->fetchObject();
 
 		# Check if public
@@ -752,7 +752,7 @@ class Photo extends Module {
 
 		# Get public
 		$stmt	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		$photo	= $stmt->fetchObject();
 
 		# Invert public
@@ -760,7 +760,7 @@ class Photo extends Module {
 
 		# Set public
 		$stmt2	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET public = ? WHERE id = ?");
-        $result = $stmt2->execute(array($public, $this->photoIDs));
+		$result = $stmt2->execute(array($public, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -783,7 +783,7 @@ class Photo extends Module {
 
 		# Set album
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET album = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($albumID, $this->photoIDs));
+		$result = $stmt->execute(array($albumID, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -814,7 +814,7 @@ class Photo extends Module {
 
 		# Set tags
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET tags = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($tags, $this->photoIDs));
+		$result = $stmt->execute(array($tags, $this->photoIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -837,7 +837,7 @@ class Photo extends Module {
 
 		# Get photos
 		$stmt	= $this->database->prepare("SELECT id, checksum FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
@@ -853,7 +853,7 @@ class Photo extends Module {
 			# Duplicate entry
 			$values		= array($id, LYCHEE_TABLE_PHOTOS, $photo->id);
 			$stmt2		= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) SELECT ? AS id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum FROM ? WHERE id = ?");
-            $duplicate  = $stmt2->execute($values);
+			$duplicate  = $stmt2->execute($values);
 			if ($duplicate === FALSE) {
 				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo, TRUE));
 				return false;
@@ -875,14 +875,14 @@ class Photo extends Module {
 
 		# Get photos
 		$stmt	= $this->database->prepare("SELECT id, url, thumburl, checksum FROM ".LYCHEE_TABLE_PHOTOS." WHERE id IN (?)");
-        $result = $stmt->execute(array($this->photoIDs));
+		$result = $stmt->execute(array($this->photoIDs));
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
 
 		# For each photo
-        $stmt2	= $this->database->prepare("DELETE FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
+		$stmt2	= $this->database->prepare("DELETE FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
 		while ($photo = $stmt->fetchObject()) {
 
 			# Check if other photos are referring to this images

@@ -44,7 +44,7 @@ class Album extends Module {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
-        $result     = $stmt->execute(array($title, $sysstamp, $public, $visible));
+		$result     = $stmt->execute(array($title, $sysstamp, $public, $visible));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -54,19 +54,19 @@ class Album extends Module {
 			return false;
 		}
 
-        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
-        {
-    		return $this->database->lastInsertId();
-        }
-        else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
-        {
-    		return $this->database->lastInsertId(LYCHEE_TABLE_ALBUMS.'_id_seq');
-        }
-        else
-        {
-            Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
-            return false;
-        }
+		if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+		{
+			return $this->database->lastInsertId();
+		}
+		else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+		{
+			return $this->database->lastInsertId(LYCHEE_TABLE_ALBUMS.'_id_seq');
+		}
+		else
+		{
+			Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+			return false;
+		}
 
 	}
 
@@ -90,18 +90,18 @@ class Album extends Module {
 						break;
 
 			case 'r':	$return['public'] = false;
-                        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
-                        {
-						    $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
-                        }
-                        else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
-                        {
-                            $photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
-                        }
-                        else
-                        {
-                            Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
-                        }
+						if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+						{
+							$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(DATE_SUB(NOW(), INTERVAL 1 DAY)) " . $this->settings['sorting']);
+						}
+						else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+						{
+							$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+						}
+						else
+						{
+							Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+						}
 						break;
 
 			case '0':	$return['public'] = false;
@@ -109,13 +109,13 @@ class Album extends Module {
 						break;
 
 			default:	$stmt = $this->database->prepare("SELECT * FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-                        $albums = $stmt->execute(array($this->albumIDs));
+						$albums = $stmt->execute(array($this->albumIDs));
 						$return = $stmt->fetch(PDO::FETCH_ASSOC);
 						$return['sysdate'] = date('d M. Y', $return['sysstamp']);
 						$return['password'] = ($return['password']=='' ? false : true);
 						$stmt = $this->database->prepare("SELECT id, title, tags, public, star, album, thumburl, takestamp FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $this->settings['sorting']);
-                        $photos = $stmt->execute(array($this->albumIDs));
-                        $photos = $stmt;
+						$photos = $stmt->execute(array($this->albumIDs));
+						$photos = $stmt;
 						break;
 
 		}
@@ -187,9 +187,9 @@ class Album extends Module {
 		# Albums query
 		$albums = $this->database->query('SELECT id, title, public, sysstamp, password FROM '.LYCHEE_TABLE_ALBUMS.' WHERE public = 1 AND visible <> 0');
 		if ($public===false)
-        {
-            $albums = $this->database->query('SELECT id, title, public, sysstamp, password FROM '.LYCHEE_TABLE_ALBUMS);
-        }
+		{
+			$albums = $this->database->query('SELECT id, title, public, sysstamp, password FROM '.LYCHEE_TABLE_ALBUMS);
+		}
 
 		# check query status
 		if ($albums === FALSE) {
@@ -197,8 +197,8 @@ class Album extends Module {
 			exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
 		}
 
-        # prepare thumbnail statement
-        $stmtThumbs = $this->database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3");
+		# prepare thumbnail statement
+		$stmtThumbs = $this->database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? ORDER BY star DESC, " . substr($this->settings['sorting'], 9) . " LIMIT 3");
 		if ($stmtThumbs === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, 'Could not get prepare statement for thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 			exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
@@ -215,10 +215,10 @@ class Album extends Module {
 
 				# Execute query
 				$resultThumbs = $stmtThumbs->execute(array($album['id']));
-		        if ($resultThumbs === FALSE) {
-			        Log::error($this->database, __METHOD__, __LINE__, 'Could not get thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
-			        exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
-		        }
+				if ($resultThumbs === FALSE) {
+					Log::error($this->database, __METHOD__, __LINE__, 'Could not get thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+					exit('Error: ' . print_r($this->database->errorInfo(), TRUE));
+				}
 
 				# For each thumb
 				$k = 0;
@@ -251,7 +251,7 @@ class Album extends Module {
 
 		# Unsorted
 		$unsorted   = $this->database->query("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = '0' " . $this->settings['sorting']);
-        if ($unsorted === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get unsorted thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+		if ($unsorted === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get unsorted thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
 		while($row = $unsorted->fetchObject()) {
 			if ($i<3) {
@@ -263,7 +263,7 @@ class Album extends Module {
 
 		# Public
 		$public     = $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS.' WHERE public = 1 ' . $this->settings['sorting']);
-        if ($public === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get public thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+		if ($public === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get public thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
 		while($row2 = $public->fetchObject()) {
 			if ($i<3) {
@@ -275,7 +275,7 @@ class Album extends Module {
 
 		# Starred
 		$starred	= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS.' WHERE star = 1 ' . $this->settings['sorting']);
-        if ($starred === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get starred thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+		if ($starred === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get starred thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
 		while($row3 = $starred->fetchObject()) {
 			if ($i<3) {
@@ -286,20 +286,20 @@ class Album extends Module {
 		$return['starredNum'] = $starred->rowCount();
 
 		# Recent
-        if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
-        {
-		    $recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(NOW() - INTERVAL '1' DAY) " . $this->settings['sorting']);
-        }
-        elseif ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
-        {
-    		$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
-        }
-        else
-        {
-            Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails, unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
-        }
+		if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+		{
+			$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE LEFT(id, 10) >= unix_timestamp(NOW() - INTERVAL '1' DAY) " . $this->settings['sorting']);
+		}
+		elseif ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+		{
+			$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sorting']);
+		}
+		else
+		{
+			Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails, unknown database driver: ' . $this->database->getAttribute(PDO::ATTR_DRIVER_NAME));
+		}
 
-        if ($recent === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
+		if ($recent === FALSE) Log::error($this->database, __METHOD__, __LINE__, 'Could not get recent thumbnails (' . print_r($this->database->errorInfo(), TRUE) . ')');
 		$i			= 0;
 		while($row3 = $recent->fetchObject()) {
 			if ($i<3) {
@@ -338,26 +338,26 @@ class Album extends Module {
 				$zipTitle	= 'Starred';
 				break;
 			case 'r':
-                # FIXME: GROUP BY checksum??
+				# FIXME: GROUP BY checksum??
 				$photos		= $this->database->query("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000"); // GROUP BY checksum");
 				$zipTitle	= 'Recent';
 				break;
 			default:
 				$stmt		= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ?");
-                $result     = $stmt->execute(array($this->albumIDs));
-                $photos     = $stmt;
+				$result     = $stmt->execute(array($this->albumIDs));
+				$photos     = $stmt;
 				$zipTitle	= 'Unsorted';
 		}
 
-        if ($photos === FALSE)
-        {
+		if ($photos === FALSE)
+		{
 			Log::error($this->database, __METHOD__, __LINE__, 'Could not get photos for archive: ' . print_r($this->database->errorInfo(), TRUE));
-        }
+		}
 
 		# Set title
 		if ($this->albumIDs!=0&&is_numeric($this->albumIDs)) {
 			$stmt2 = $this->database->prepare("SELECT title FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-            $result = $stmt2->execute(array($this->albumIDs));
+			$result = $stmt2->execute(array($this->albumIDs));
 			$zipTitle = $stmt2->fetchObject()->title;
 		}
 
@@ -452,7 +452,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET title = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($title, $this->albumIDs));
+		$result = $stmt->execute(array($title, $this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -479,7 +479,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET description = ? WHERE id IN (?)");
-        $result = $stmt->execute(array($description, $this->albumIDs));
+		$result = $stmt->execute(array($description, $this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
@@ -504,7 +504,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->albumIDs));
+		$result = $stmt->execute(array($this->albumIDs));
 		$album	= $stmt->fetchObject();
 
 		# Call plugins
@@ -527,7 +527,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("SELECT downloadable FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->albumIDs));
+		$result = $stmt->execute(array($this->albumIDs));
 		$album	= $stmt->fetchObject();
 
 		# Call plugins
@@ -548,7 +548,7 @@ class Album extends Module {
 
 		# Get public
 		$stmt	= $this->database->prepare("SELECT id, public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id IN (?)");
-        $stmt->execute(array($this->albumIDs));
+		$stmt->execute(array($this->albumIDs));
 
 		while ($album = $stmt->fetchObject()) {
 
@@ -563,7 +563,7 @@ class Album extends Module {
 
 			# Set public
 			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET public = ?, visible = ?, downloadable = ?, password = NULL WHERE id = ?");
-            $result = $stmt->execute(array($public, $visible, $downloadable, $album->id));
+			$result = $stmt->execute(array($public, $visible, $downloadable, $album->id));
 			if ($result === FALSE) {
 				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 				return false;
@@ -572,7 +572,7 @@ class Album extends Module {
 			# Reset permissions for photos
 			if ($public===1) {
 				$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET public = 0 WHERE album = ?");
-                $result = $stmt->execute(array($album->id));
+				$result = $stmt->execute(array($album->id));
 				if ($result === FALSE) {
 					Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 					return false;
@@ -608,13 +608,13 @@ class Album extends Module {
 			# Do not prepare $password because it is hashed and save
 			# Preparing (escaping) the password would destroy the hash
 			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET password = ? WHERE id IN (?)");
-            $result = $stmt->execute(array($password, $this->albumIDs));
+			$result = $stmt->execute(array($password, $this->albumIDs));
 
 		} else {
 
 			# Unset password
 			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_ALBUMS." SET password = NULL WHERE id IN (?)");
-            $result = $stmt->execute(array($this->albumIDs));
+			$result = $stmt->execute(array($this->albumIDs));
 
 		}
 
@@ -639,7 +639,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("SELECT password FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
-        $result = $stmt->execute(array($this->albumIDs));
+		$result = $stmt->execute(array($this->albumIDs));
 		$album	= $stmt->fetchObject();
 
 		# Call plugins
@@ -664,7 +664,7 @@ class Album extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("SELECT id FROM ".LYCHEE_TABLE_PHOTOS." WHERE album IN (?)");
-        $result = $stmt->execute(array($this->albumIDs));
+		$result = $stmt->execute(array($this->albumIDs));
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
@@ -681,7 +681,7 @@ class Album extends Module {
 
 		# Delete albums
 		$stmt	= $this->database->prepare("DELETE FROM ".LYCHEE_TABLE_ALBUMS." WHERE id IN (?)");
-        $result = $stmt->execute(array($this->albumIDs));
+		$result = $stmt->execute(array($this->albumIDs));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());

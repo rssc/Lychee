@@ -16,20 +16,20 @@ function search($database, $settings, $term) {
 	$return['albums'] = '';
 
 	// Photos
-    if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
-    {
-    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
-    }
-    else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
-    {
-    	$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title ILIKE ? OR description ILIKE ? OR tags ILIKE ?");
-    }
-    else
-    {
-        $stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
-        Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
-    }
-    $result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
+	if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+	{
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+	}
+	else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+	{
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title ILIKE ? OR description ILIKE ? OR tags ILIKE ?");
+	}
+	else
+	{
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+		Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
+	}
+	$result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
 	while($row = $stmtP->fetch(PDO::FETCH_ASSOC)) {
 		$return['photos'][$row['id']]				= $row;
 		$return['photos'][$row['id']]['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $row['thumburl'];
@@ -37,19 +37,19 @@ function search($database, $settings, $term) {
 	}
 
 	// Albums
-    if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
-    {
-    	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
-    }
-    else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
-    {
-    	$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title ILIKE ? OR description ILIKE ?");
-    }
-    else
-    {
-        Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
-    }
-    $result = $stmtA->execute(array('%'.$term.'%', '%'.$term.'%'));
+	if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+	{
+		$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
+	}
+	else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+	{
+		$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title ILIKE ? OR description ILIKE ?");
+	}
+	else
+	{
+		Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
+	}
+	$result = $stmtA->execute(array('%'.$term.'%', '%'.$term.'%'));
 	$i		= 0;
 	while($row = $stmtA->fetchObject()) {
 
@@ -62,7 +62,7 @@ function search($database, $settings, $term) {
 
 		// Thumbs
 		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 3 OFFSET 0");
-        $result2    = $stmtT->execute(array($row->id));
+		$result2    = $stmtT->execute(array($row->id));
 		$k			= 0;
 		while($row2 = $stmtT->fetchObject()){
 			$return['albums'][$row->id]["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumburl;
@@ -82,7 +82,7 @@ function getGraphHeader($database, $photoID) {
 	if (!isset($database, $photoID)) return false;
 
 	$stmt	= $database->prepare("SELECT title, description, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
-    $result = $stmt->execute(array($photoID));
+	$result = $stmt->execute(array($photoID));
 	$row	= $stmt->fetchObject();
 
 	$parseUrl	= parse_url("http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);

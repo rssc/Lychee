@@ -57,7 +57,7 @@ if (!empty($_POST['function'])||!empty($_GET['function'])) {
 	# Escape
 	foreach(array_keys($_POST) as $key)	$_POST[$key] = urldecode($_POST[$key]);
 	foreach(array_keys($_GET) as $key)	$_GET[$key] = urldecode($_GET[$key]);
-    # WARNING: Make sure to locally sanitize input (and using prepared statements) when doing anything with these values and the database
+	# WARNING: Make sure to locally sanitize input (and using prepared statements) when doing anything with these values and the database
 
 	# Validate parameters
 	if (isset($_POST['albumIDs'])&&preg_match('/^[0-9\,]{1,}$/', $_POST['albumIDs'])!==1)	exit('Error: Wrong parameter type for albumIDs!');

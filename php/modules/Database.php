@@ -35,22 +35,22 @@ class Database extends Module {
 		#if (!$database->select_db($name))
 		#	if (!Database::createDatabase($database, $name)) exit('Error: Could not create database!');
 
-        # set mode
-        if ($type === "mysql")
-        {
-            if ($database->exec("SET SESSION sql_mode = ANSI_QUOTES") === FALSE)
-            {
-                error_log('Cannot set MySQL SQL mode: ' . print_r($database->errorInfo(), TRUE));
-            }
-        }
+		# set mode
+		if ($type === "mysql")
+		{
+			if ($database->exec("SET SESSION sql_mode = ANSI_QUOTES") === FALSE)
+			{
+				error_log('Cannot set MySQL SQL mode: ' . print_r($database->errorInfo(), TRUE));
+			}
+		}
 
 		# Check tables
 		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_PHOTOS.', '.LYCHEE_TABLE_ALBUMS.', '.LYCHEE_TABLE_SETTINGS.', '.LYCHEE_TABLE_LOG.' LIMIT 0');
-        if ($result === FALSE)
-        {
-            # tables do not exist, create them
+		if ($result === FALSE)
+		{
+			# tables do not exist, create them
 			if (!Database::createTables($database, $type)) exit('Error: Could not create tables!');
-        }
+		}
 
 		return $database;
 
@@ -91,14 +91,14 @@ class Database extends Module {
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
 
-        try
-        {
-            $database = new PDO($type.':host=localhost;dbname='.$name, $user, $password);
-        }
-        catch (PDOException $e)
-        {
-            exit ('Warning: Connection failed: '.$e->getMessage());
-        }
+		try
+		{
+			$database = new PDO($type.':host=localhost;dbname='.$name, $user, $password);
+		}
+		catch (PDOException $e)
+		{
+			exit ('Warning: Connection failed: '.$e->getMessage());
+		}
 
 		#if ($database->connect_errno) return 'Warning: Connection failed!';
 
@@ -118,7 +118,7 @@ class Database extends Module {
 		$user		= $database->quote($user);
 		$password	= $database->quote($password);
 		$name		= $database->quote($name);
-        # FIXME: stricter check for prefix (i.e., only characters and potentially numbers)
+		# FIXME: stricter check for prefix (i.e., only characters and potentially numbers)
 		$prefix		= $database->quote($prefix);
 
 		# Save config.php
@@ -154,8 +154,8 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 		# Check dependencies
 		Module::dependencies(isset($database, $name));
 
-        # not implemented
-        return false;
+		# not implemented
+		return false;
 
 		# Create database
 		#$result = $database->query("CREATE DATABASE IF NOT EXISTS $name;");
@@ -173,8 +173,8 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 		# Create log
 		$result = $database->query('SELECT * FROM '.LYCHEE_TABLE_LOG.' LIMIT 0');
-        if ($result === FALSE)
-        {
+		if ($result === FALSE)
+		{
 
 			# Read file
 			$file	= __DIR__ . '/../database/log_table_'.$type.'.sql';
@@ -183,14 +183,14 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			if (!isset($query)||$query===false) return false;
 
 			# Create table
-            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
-            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			# Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+			$query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
 			$result = $database->exec($query);
-            if ($result === FALSE)
-            {
-                error_log(print_r($database->errorInfo(), TRUE));
-                return false;
-            }
+			if ($result === FALSE)
+			{
+				error_log(print_r($database->errorInfo(), TRUE));
+				return false;
+			}
 
 		}
 
@@ -208,14 +208,14 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
-            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			# Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+			$query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
 			$result = $database->exec($query);
-            if ($result === FALSE)
-            {
+			if ($result === FALSE)
+			{
 				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
-                return false;
-            }
+				return false;
+			}
 
 			# Read file
 			$file	= __DIR__ . '/../database/settings_content_'.$type.'.sql';
@@ -227,10 +227,10 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Add content
-            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			$query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
 			$result = $database->exec($query);
-            if ($result === FALSE)
-            {
+			if ($result === FALSE)
+			{
 				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}
@@ -251,11 +251,11 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
-            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			# Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+			$query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
 			$result = $database->exec($query);
-            if ($result === FALSE)
-            {
+			if ($result === FALSE)
+			{
 				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}
@@ -276,11 +276,11 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			}
 
 			# Create table
-            # Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
-            $query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
+			# Replace table prefix in query loaded from file (native parametrization of identifiers not supported in PDO)
+			$query = str_replace("_PREFIX_", LYCHEE_TABLE_PREFIX, $query);
 			$result = $database->exec($query);
-            if ($result === FALSE)
-            {
+			if ($result === FALSE)
+			{
 				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
 				return false;
 			}

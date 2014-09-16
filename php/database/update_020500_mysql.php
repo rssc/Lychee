@@ -34,10 +34,10 @@ if ($result !== FALSE) {
 		Log::error($database, 'update_020500', __LINE__, 'Could not update database (' . print_r($database->error, TRUE) . ')');
 		return false;
 	}
-    $stmt = $database->prepare("UPDATE `".LYCHEE_TABLE_PHOTOS."` SET `takestamp` = ? WHERE `id` = ?");
+	$stmt = $database->prepare("UPDATE `".LYCHEE_TABLE_PHOTOS."` SET `takestamp` = ? WHERE `id` = ?");
 	while ($photo = $result->fetchObject()) {
 		$takestamp = strtotime($photo->takedate . $photo->taketime);
-        $stmt->execute(array($takestamp, $photo->id));
+		$stmt->execute(array($takestamp, $photo->id));
 	}
 	$result = $database->query("ALTER TABLE `".LYCHEE_TABLE_PHOTOS."` DROP COLUMN `takedate`");
 	$result = $database->query("ALTER TABLE `".LYCHEE_TABLE_PHOTOS."` DROP COLUMN `taketime`");

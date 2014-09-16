@@ -81,7 +81,7 @@ class Settings extends Module {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
-        $result = $stmt->execute(array($username));
+		$result = $stmt->execute(array($username));
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
@@ -106,7 +106,7 @@ class Settings extends Module {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
-        $result = $stmt->execute(array($password));
+		$result = $stmt->execute(array($password));
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
@@ -128,7 +128,7 @@ class Settings extends Module {
 
 		# Execute query
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'dropboxKey'");
-        $result = $stmt->execute(array($key));
+		$result = $stmt->execute(array($key));
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
@@ -192,7 +192,7 @@ class Settings extends Module {
 		# Do not prepare $sorting because it is a true statement
 		# Preparing (escaping) the sorting would destroy it
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE \"key\" = 'sorting'");
-        $result = $stmt->execute(array($sorting));
+		$result = $stmt->execute(array($sorting));
 
 		if ($result === FALSE) {
 			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));

@@ -9,6 +9,12 @@ VALUES
   ('password',''),
   ('thumbQuality','90'),
   ('checkForUpdates','1'),
-  ('sorting','ORDER BY id DESC'),
+  ('sortingPhotos','ORDER BY id DESC'),
+  ('sortingAlbums','ORDER BY id DESC'),
+  ('medium','1'),
+  ('imagick','1'),
   ('dropboxKey',''),
+  ('identifier',''),
+  ('skipDuplicates','0'),
   ('plugins','');
+

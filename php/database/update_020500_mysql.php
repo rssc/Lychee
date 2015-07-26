@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.5
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Add `plugins`
 $result = $database->query("SELECT `key` FROM `".LYCHEE_TABLE_SETTINGS."` WHERE `key` = 'plugins' LIMIT 1");

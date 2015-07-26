@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.5.5
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Add `checksum`
 $result= $database->query("SELECT `checksum` FROM `".LYCHEE_TABLE_PHOTOS."` LIMIT 1");

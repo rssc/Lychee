@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS `_PREFIX_lychee_photos` (
   `id` bigint(14) NOT NULL,
-  `title` varchar(50) NOT NULL,
+  `title` varchar(100) NOT NULL,
   `description` varchar(1000) DEFAULT '',
   `url` varchar(100) NOT NULL,
   `tags` varchar(1000) NOT NULL DEFAULT '',
@@ -24,5 +24,6 @@ CREATE TABLE IF NOT EXISTS `_PREFIX_lychee_photos` (
   `thumburl` varchar(50) NOT NULL,
   `album` varchar(30) NOT NULL DEFAULT '0',
   `checksum` VARCHAR(100) DEFAULT NULL,
+  `medium` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;

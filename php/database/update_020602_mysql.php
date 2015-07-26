@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.6.2
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Add a checksum
 $result = $database->query("SELECT `id`, `url` FROM `".LYCHEE_TABLE_PHOTOS."` WHERE `checksum` IS NULL");
@@ -32,7 +33,7 @@ while ($photo = $result->fetchObject()) {
 }
 
 # Add Imagick
-$query	= $database->query("SELECT `key` FROM `".LYCHEE_TABLE_SETTINGS."` WHERE `key` = 'imagick' LIMIT 1");
+$result	= $database->query("SELECT `key` FROM `".LYCHEE_TABLE_SETTINGS."` WHERE `key` = 'imagick' LIMIT 1");
 if ($result->rowCount()===0) {
 	$result = $database->exec("INSERT INTO `".LYCHEE_TABLE_SETTINGS."` (`key`, `value`) VALUES ('imagick', '1')");
 	if (!$result) {

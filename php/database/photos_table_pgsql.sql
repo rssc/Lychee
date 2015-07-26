@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS _PREFIX_lychee_photos
   thumburl character varying(50) NOT NULL,
   album character varying(30) NOT NULL DEFAULT '0'::character varying,
   checksum character varying(100) DEFAULT NULL::character varying,
+  medium smallint NOT NULL DEFAULT '0',
   CONSTRAINT pk__PREFIX_lychee_photos_id PRIMARY KEY (id)
 )
 WITH (

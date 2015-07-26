@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.1
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 $result = $database->query("SELECT tags FROM ".LYCHEE_TABLE_PHOTOS." LIMIT 1");
 if($result === FALSE) {

@@ -1,9 +1,8 @@
 <?php
 
 ###
-# @name		Database Module
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @name			Database Module
+# @copyright	2015 by Tobias Reich
 ###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
@@ -28,8 +27,11 @@ class Database extends Module {
 		#if ($database->connect_errno) exit('Error: ' . $database->connect_error);
 
 		# Avoid sql injection on older MySQL versions by using GBK
-		#if ($database->server_version<50500) $database->set_charset('GBK');
-		#else $database->set_charset("utf8");
+		if ($database->server_version<50500) @$database->set_charset('GBK');
+		else @$database->set_charset('utf8');
+
+		# Set unicode
+		$database->query('SET NAMES utf8;');
 
 		# Check database
 		#if (!$database->select_db($name))
@@ -60,6 +62,7 @@ class Database extends Module {
 
 		# Check dependencies
 		Module::dependencies(isset($database, $dbName));
+		if (!isset($version)) return true;
 
 		# List of updates
 		$updates = array(
@@ -69,13 +72,17 @@ class Database extends Module {
 			'020500', #2.5
 			'020505', #2.5.5
 			'020601', #2.6.1
-			'020602' #2.6.2
+			'020602', #2.6.2
+			'020700', #2.7.0
+			'030000', #3.0.0
+			'030001', #3.0.1
+			'030003' #3.0.3
 		);
 
 		# For each update
 		foreach ($updates as $update) {
 
-			if (isset($version)&&$update<=$version) continue;
+			if ($update<=$version) continue;
 
 			# Load update
 			include(__DIR__ . '/../database/update_' . $update . '_'.$type.'.php');
@@ -106,10 +113,9 @@ class Database extends Module {
 		#if (!$database->select_db($name)) {
 
 			# Database doesn't exist
-			# Check if user can create a database
-			#$result = $database->query('CREATE DATABASE lychee_dbcheck');
-			#if (!$result) return 'Warning: Creation failed!';
-			#else $database->query('DROP DATABASE lychee_dbcheck');
+			# Check if user can create the database
+			$result = Database::createDatabase($database, $name);
+			if ($result===false) return 'Warning: Creation failed!';
 
 		#}
 
@@ -127,7 +133,7 @@ $config = "<?php
 ###
 # @name			Configuration
 # @author		Tobias Reich
-# @copyright	2014 Tobias Reich
+# @copyright	2015 Tobias Reich
 ###
 
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
@@ -158,6 +164,7 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 		return false;
 
 		# Create database
+		# FIXME
 		#$result = $database->query("CREATE DATABASE IF NOT EXISTS $name;");
 		#$database->select_db($name);
 
@@ -232,6 +239,14 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			if ($result === FALSE)
 			{
 				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+				return false;
+			}
+
+			# Generate identifier
+			$identifier	= md5(microtime(true));
+			$query		= Database::prepare($database, "UPDATE `?` SET `value` = '?' WHERE `key` = 'identifier' LIMIT 1", array(LYCHEE_TABLE_SETTINGS, $identifier));
+			if (!$database->query($query)) {
+				Log::error($database, __METHOD__, __LINE__, $database->error);
 				return false;
 			}
 

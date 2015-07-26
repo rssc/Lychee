@@ -2,8 +2,7 @@
 
 ###
 # @name			Update to version 2.2
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
 
 $result = $database->query("SELECT visible FROM ".LYCHEE_TABLE_ALBUMS." LIMIT 1");

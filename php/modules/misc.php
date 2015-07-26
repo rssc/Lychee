@@ -1,11 +1,9 @@
 <?php
 
-/**
- * @name		Misc Module
- * @author		Philipp Maurer
- * @author		Tobias Reich
- * @copyright	2014 by Philipp Maurer, Tobias Reich
- */
+###
+# @name			Misc Module
+# @copyright	2015 by Tobias Reich
+###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
@@ -15,28 +13,44 @@ function search($database, $settings, $term) {
 
 	$return['albums'] = '';
 
+	# Initialize return var
+	$return = array(
+		'photos'	=> null,
+		'albums'	=> null,
+		'hash'		=> ''
+	);
+
+	###
+	# Photos
+	###
+
 	// Photos
 	if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
 	{
-		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl, takestamp, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
 	}
 	else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
 	{
-		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title ILIKE ? OR description ILIKE ? OR tags ILIKE ?");
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl, takestamp, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE title ILIKE ? OR description ILIKE ? OR tags ILIKE ?");
 	}
 	else
 	{
-		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
+		$stmtP	= $database->prepare("SELECT id, title, tags, public, star, album, thumburl, takestamp, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE title LIKE ? OR description LIKE ? OR tags LIKE ?");
 		Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
 	}
 	$result = $stmtP->execute(array('%'.$term.'%', '%'.$term.'%', '%'.$term.'%'));
-	while($row = $stmtP->fetch(PDO::FETCH_ASSOC)) {
-		$return['photos'][$row['id']]				= $row;
-		$return['photos'][$row['id']]['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $row['thumburl'];
-		$return['photos'][$row['id']]['sysdate']	= date('d M. Y', substr($row['id'], 0, -4));
+
+	while($photo = $stmtP->fetch(PDO::FETCH_ASSOC)) {
+
+		$photo = Photo::prepareData($photo);
+		$return['photos'][$photo['id']] = $photo;
+
 	}
 
-	// Albums
+	###
+	# Albums
+	###
+
 	if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
 	{
 		$stmtA	= $database->prepare("SELECT id, title, public, sysstamp, password FROM ".LYCHEE_TABLE_ALBUMS." WHERE title LIKE ? OR description LIKE ?");
@@ -50,28 +64,28 @@ function search($database, $settings, $term) {
 		Log::error($this->database, __METHOD__, __LINE__, 'Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
 	}
 	$result = $stmtA->execute(array('%'.$term.'%', '%'.$term.'%'));
-	$i		= 0;
-	while($row = $stmtA->fetchObject()) {
 
-		// Info
-		$return['albums'][$row->id]['id']		= $row->id;
-		$return['albums'][$row->id]['title']	= $row->title;
-		$return['albums'][$row->id]['public']	= $row->public;
-		$return['albums'][$row->id]['sysdate']	= date('F Y', $row->sysstamp);
-		$return['albums'][$row->id]['password']	= ($row->password=='' ? false : true);
+	while($album = $stmtA->fetch(PDO::FETCH_ASSOC)) {
+
+		# Turn data from the database into a front-end friendly format
+		$album = Album::prepareData($album);
 
 		// Thumbs
-		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sorting'] . " LIMIT 3 OFFSET 0");
-		$result2    = $stmtT->execute(array($row->id));
+		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sortingPhotos'] . " LIMIT 3 OFFSET 0");
+		$result2    = $stmtT->execute(array($album['id']);
 		$k			= 0;
-		while($row2 = $stmtT->fetchObject()){
-			$return['albums'][$row->id]["thumb$k"] = LYCHEE_URL_UPLOADS_THUMB . $row2->thumburl;
+		while($thumb = $stmtT->fetchObject()){
+			$album['thumbs'][$k] = LYCHEE_URL_UPLOADS_THUMB . $thumb->thumbUrl;
 			$k++;
 		}
 
-		$i++;
+		# Add to return
+		$return['albums'][$album['id']] = $album;
 
 	}
+
+	# Hash
+	$return['hash'] = md5(json_encode($return));
 
 	return $return;
 
@@ -81,26 +95,43 @@ function getGraphHeader($database, $photoID) {
 
 	if (!isset($database, $photoID)) return false;
 
-	$stmt	= $database->prepare("SELECT title, description, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
+	$photo = new Photo($database, null, null, $photoID);
+	if ($photo->getPublic('')===false) return false;
+
+	$stmt	= $database->prepare("SELECT title, description, url, medium FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ?");
 	$result = $stmt->execute(array($photoID));
 	$row	= $stmt->fetchObject();
 
-	$parseUrl	= parse_url("http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
-	$picture	= $parseUrl['scheme']."://".$parseUrl['host'].$parseUrl['path']."/../uploads/big/".$row->url;
+	if (!$result||!$row) return false;
+
+	if ($row->medium==='1')	$dir = 'medium';
+	else					$dir = 'big';
+
+	$parseUrl	= parse_url('http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+	$url		= $parseUrl['scheme'] . '://' . $parseUrl['host'] . $parseUrl['path'] . '?' . $parseUrl['query'];
+	$picture	= $parseUrl['scheme'] . '://' . $parseUrl['host'] . $parseUrl['path'] . '/../uploads/' . $dir . '/' . $row->url;
+
+	$url		= htmlentities($url);
+	$picture	= htmlentities($picture);
+
+	$row->title			= htmlentities($row->title);
+	$row->description	= htmlentities($row->description);
 
 	$return = '<!-- General Meta Data -->';
-	$return .= '<meta name="title" content="'.$row->title.'" />';
-	$return .= '<meta name="description" content="'.$row->description.' - via Lychee" />';
-	$return .= '<link rel="image_src" type="image/jpeg" href="'.$picture.'" />';
+	$return .= '<meta name="title" content="' . $row->title . '">';
+	$return .= '<meta name="description" content="' . $row->description . ' - via Lychee">';
+	$return .= '<link rel="image_src" type="image/jpeg" href="' . $picture . '">';
 
 	$return .= '<!-- Twitter Meta Data -->';
 	$return .= '<meta name="twitter:card" content="photo">';
-	$return .= '<meta name="twitter:title" content="'.$row->title.'">';
-	$return .= '<meta name="twitter:image:src" content="'.$picture.'">';
+	$return .= '<meta name="twitter:title" content="' . $row->title . '">';
+	$return .= '<meta name="twitter:image:src" content="' . $picture . '">';
 
 	$return .= '<!-- Facebook Meta Data -->';
-	$return .= '<meta property="og:title" content="'.$row->title.'">';
-	$return .= '<meta property="og:image" content="'.$picture.'">';
+	$return .= '<meta property="og:title" content="' . $row->title . '">';
+	$return .= '<meta property="og:description" content="' . $row->description . ' - via Lychee">';
+	$return .= '<meta property="og:image" content="' . $picture . '">';
+	$return .= '<meta property="og:url" content="' . $url . '">';
 
 	return $return;
 
@@ -116,7 +147,7 @@ function getExtension($filename) {
 
 }
 
-function get_hashed_password($password) {
+function getHashedString($password) {
 
 	# Inspired by http://alias.io/2010/01/store-passwords-safely-with-php-and-mysql/
 
@@ -144,13 +175,14 @@ function get_hashed_password($password) {
 
 }
 
-function hasPermissions($path, $permissions = '0777') {
+function hasPermissions($path) {
 
-	/* assume that if running with the same uid as the owner of the directory it's ok */
-	$stat = @stat($path);
-	if ($stat && ($stat['uid'] == getmyuid())) return true;
-	if (substr(sprintf('%o', @fileperms($path)), -4)!=$permissions) return false;
-	else return true;
+	// Check if the given path is readable and writable
+	// Both functions are also verifying that the path exists
+	if (is_readable($path)===true&&
+		is_writeable($path)===true) return true;
+
+	return false;
 
 }
 

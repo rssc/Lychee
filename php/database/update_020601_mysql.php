@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.6.1
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Add `downloadable`
 $result = $database->query("SELECT `downloadable` FROM `".LYCHEE_TABLE_ALBUMS."` LIMIT 1");

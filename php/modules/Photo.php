@@ -1,9 +1,8 @@
 <?php
 
 ###
-# @name		Photo Module
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @name			Photo Module
+# @copyright	2015 by Tobias Reich
 ###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
@@ -14,12 +13,12 @@ class Photo extends Module {
 	private $settings	= null;
 	private $photoIDs	= null;
 
-	private $allowedTypes = array(
+	public static $validTypes = array(
 		IMAGETYPE_JPEG,
 		IMAGETYPE_GIF,
 		IMAGETYPE_PNG
 	);
-	private $validExtensions = array(
+	public static $validExtensions = array(
 		'.jpg',
 		'.jpeg',
 		'.png',
@@ -38,15 +37,20 @@ class Photo extends Module {
 
 	}
 
-	public function add($files, $albumID, $description = '', $tags = '') {
+	public function add($files, $albumID = 0, $description = '', $tags = '', $returnOnError = false) {
+
+		# Use $returnOnError if you want to handle errors by your own
+		# e.g. when calling this functions inside an if-condition
 
 		# Check dependencies
-		self::dependencies(isset($this->database));
+		self::dependencies(isset($this->database, $this->settings, $files));
 
 		# Check permissions
-		if (hasPermissions(LYCHEE_UPLOADS_BIG)===false||hasPermissions(LYCHEE_UPLOADS_THUMB)===false) {
-			Log::error($this->database, __METHOD__, __LINE__, 'Wrong permissions in uploads/');
-			exit('Error: Wrong permissions in uploads-folder!');
+		if (hasPermissions(LYCHEE_UPLOADS)===false||
+			hasPermissions(LYCHEE_UPLOADS_BIG)===false||
+			hasPermissions(LYCHEE_UPLOADS_THUMB)===false) {
+				Log::error($this->database, __METHOD__, __LINE__, 'An upload-folder is missing or not readable and writable');
+				exit('Error: An upload-folder is missing or not readable and writable!');
 		}
 
 		# Call plugins
@@ -86,11 +90,19 @@ class Photo extends Module {
 
 			# Verify extension
 			$extension = getExtension($file['name']);
-			if (!in_array(strtolower($extension), $this->validExtensions, true)) continue;
+			if (!in_array(strtolower($extension), Photo::$validExtensions, true)) {
+				Log::error($this->database, __METHOD__, __LINE__, 'Photo format not supported');
+				if ($returnOnError===true) return false;
+				exit('Error: Photo format not supported!');
+			}
 
 			# Verify image
 			$type = @exif_imagetype($file['tmp_name']);
-			if (!in_array($type, $this->allowedTypes, true)) continue;
+			if (!in_array($type, Photo::$validTypes, true)) {
+				Log::error($this->database, __METHOD__, __LINE__, 'Photo type not supported');
+				if ($returnOnError===true) return false;
+				exit('Error: Photo type not supported!');
+			}
 
 			# Generate id
 			$id = str_replace('.', '', microtime(true));
@@ -105,6 +117,7 @@ class Photo extends Module {
 			$checksum = sha1_file($tmp_name);
 			if ($checksum===false) {
 				Log::error($this->database, __METHOD__, __LINE__, 'Could not calculate checksum for photo');
+				if ($returnOnError===true) return false;
 				exit('Error: Could not calculate checksum for photo!');
 			}
 
@@ -122,6 +135,7 @@ class Photo extends Module {
 					$photo_name	= $exists['photo_name'];
 					$path		= $exists['path'];
 					$path_thumb	= $exists['path_thumb'];
+					$medium		= ($exists['medium']==='1' ? 1 : 0);
 					$exists		= true;
 				}
 
@@ -133,13 +147,25 @@ class Photo extends Module {
 				if (!is_uploaded_file($tmp_name)) {
 					if (!@copy($tmp_name, $path)) {
 						Log::error($this->database, __METHOD__, __LINE__, 'Could not copy photo to uploads');
+						if ($returnOnError===true) return false;
 						exit('Error: Could not copy photo to uploads!');
 					} else @unlink($tmp_name);
 				} else {
 					if (!@move_uploaded_file($tmp_name, $path)) {
 						Log::error($this->database, __METHOD__, __LINE__, 'Could not move photo to uploads');
+						if ($returnOnError===true) return false;
 						exit('Error: Could not move photo to uploads!');
 					}
+				}
+
+			} else {
+
+				# Photo already exists
+				# Check if the user wants to skip duplicates
+				if ($this->settings['skipDuplicates']==='1') {
+					Log::notice($this->database, __METHOD__, __LINE__, 'Skipped upload of existing photo because skipDuplicates is activated');
+					if ($returnOnError===true) return false;
+					exit('Warning: This photo has been skipped because it\'s already in your library.');
 				}
 
 			}
@@ -156,18 +182,25 @@ class Photo extends Module {
 			if ($exists===false) {
 
 				# Set orientation based on EXIF data
-				if ($file['type']==='image/jpeg'&&isset($info['orientation'], $info['width'], $info['height'])&&$info['orientation']!=='') {
-					if (!$this->adjustFile($path, $info)) Log::notice($this->database, __METHOD__, __LINE__, 'Could not adjust photo (' . $info['title'] . ')');
+				if ($file['type']==='image/jpeg'&&isset($info['orientation'])&&$info['orientation']!=='') {
+					$adjustFile = $this->adjustFile($path, $info);
+					if ($adjustFile!==false) $info = $adjustFile;
+					else Log::notice($this->database, __METHOD__, __LINE__, 'Skipped adjustment of photo (' . $info['title'] . ')');
 				}
 
 				# Set original date
-				if ($info['takestamp']!=='') @touch($path, $info['takestamp']);
+				if ($info['takestamp']!==''&&$info['takestamp']!==0) @touch($path, $info['takestamp']);
 
 				# Create Thumb
-				if (!$this->createThumb($path, $photo_name)) {
+				if (!$this->createThumb($path, $photo_name, $info['type'], $info['width'], $info['height'])) {
 					Log::error($this->database, __METHOD__, __LINE__, 'Could not create thumbnail for photo');
+					if ($returnOnError===true) return false;
 					exit('Error: Could not create thumbnail for photo!');
 				}
+
+				# Create Medium
+				if ($this->createMedium($path, $photo_name, $info['width'], $info['height'])) $medium = 1;
+				else $medium = 0;
 
 				# Set thumb url
 				$path_thumb = md5($id) . '.jpeg';
@@ -175,12 +208,13 @@ class Photo extends Module {
 			}
 
 			# Save to DB
-			$values	= array($id, $info['title'], $photo_name, $description, $tags, $info['type'], $info['width'], $info['height'], $info['size'], $info['iso'], $info['aperture'], $info['make'], $info['model'], $info['shutter'], $info['focal'], $info['takestamp'], $path_thumb, $albumID, $public, $star, $checksum);
-			$stmt	= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+			$values	= array($id, $info['title'], $photo_name, $description, $tags, $info['type'], $info['width'], $info['height'], $info['size'], $info['iso'], $info['aperture'], $info['make'], $info['model'], $info['shutter'], $info['focal'], $info['takestamp'], $path_thumb, $albumID, $public, $star, $checksum, $medium);
+			$stmt	= $this->database->prepare("INSERT INTO ".LYCHEE_TABLE_PHOTOS." (id, title, url, description, tags, type, width, height, size, iso, aperture, make, model, shutter, focal, takestamp, thumburl, album, public, star, checksum, medium) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 			$result = $stmt->execute($values);
 
 			if ($result === FALSE) {
 				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
+				if ($returnOnError===true) return false;
 				exit('Error: Could not save photo in database!');
 			}
 
@@ -201,12 +235,12 @@ class Photo extends Module {
 		# Exclude $photoID from select when $photoID is set
 		if (isset($photoID))
 		{
-			$stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? AND id <> ? LIMIT 1");
+			$stmt = $this->database->prepare("SELECT id, url, thumburl, medium FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? AND id <> ? LIMIT 1");
 			$result = $stmt->execute(array($checksum, $photoID));
 		}
 		else
 		{
-			$stmt = $this->database->prepare("SELECT id, url, thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? LIMIT 1");
+			$stmt = $this->database->prepare("SELECT id, url, thumburl, medium FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum = ? LIMIT 1");
 			$result = $stmt->execute(array($checksum));
 		}
 
@@ -222,7 +256,8 @@ class Photo extends Module {
 			$return = array(
 				'photo_name'	=> $result->url,
 				'path'			=> LYCHEE_UPLOADS_BIG . $result->url,
-				'path_thumb'	=> $result->thumburl
+				'path_thumb'	=> $result->thumbUrl,
+				'medium'		=> $result->medium
 			);
 
 			return $return;
@@ -233,20 +268,23 @@ class Photo extends Module {
 
 	}
 
-	private function createThumb($url, $filename, $width = 200, $height = 200) {
+	private function createThumb($url, $filename, $type, $width, $height) {
 
 		# Check dependencies
-		self::dependencies(isset($this->database, $this->settings, $url, $filename));
+		self::dependencies(isset($this->database, $this->settings, $url, $filename, $type, $width, $height));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 0, func_get_args());
 
-		$info		= getimagesize($url);
-		$photoName	= explode(".", $filename);
+		# Size of the thumbnail
+		$newWidth	= 200;
+		$newHeight	= 200;
+
+		$photoName	= explode('.', $filename);
 		$newUrl		= LYCHEE_UPLOADS_THUMB . $photoName[0] . '.jpeg';
 		$newUrl2x	= LYCHEE_UPLOADS_THUMB . $photoName[0] . '@2x.jpeg';
 
-		# create thumbnails with Imagick
+		# Create thumbnails with Imagick
 		if(extension_loaded('imagick')&&$this->settings['imagick']==='1') {
 
 			# Read image
@@ -259,34 +297,36 @@ class Photo extends Module {
 			$thumb2x = clone $thumb;
 
 			# Create 1st version
-			$thumb->cropThumbnailImage($width, $height);
+			$thumb->cropThumbnailImage($newWidth, $newHeight);
 			$thumb->writeImage($newUrl);
 			$thumb->clear();
 			$thumb->destroy();
 
 			# Create 2nd version
-			$thumb2x->cropThumbnailImage($width*2, $height*2);
+			$thumb2x->cropThumbnailImage($newWidth*2, $newHeight*2);
 			$thumb2x->writeImage($newUrl2x);
 			$thumb2x->clear();
 			$thumb2x->destroy();
 
 		} else {
 
-			# Set position and size
-			$thumb = imagecreatetruecolor($width, $height);
-			$thumb2x = imagecreatetruecolor($width*2, $height*2);
-			if ($info[0]<$info[1]) {
-				$newSize		= $info[0];
+			# Create image
+			$thumb		= imagecreatetruecolor($newWidth, $newHeight);
+			$thumb2x	= imagecreatetruecolor($newWidth*2, $newHeight*2);
+
+			# Set position
+			if ($width<$height) {
+				$newSize		= $width;
 				$startWidth		= 0;
-				$startHeight	= $info[1]/2 - $info[0]/2;
+				$startHeight	= $height/2 - $width/2;
 			} else {
-				$newSize		= $info[1];
-				$startWidth		= $info[0]/2 - $info[1]/2;
+				$newSize		= $height;
+				$startWidth		= $width/2 - $height/2;
 				$startHeight	= 0;
 			}
 
 			# Create new image
-			switch($info['mime']) {
+			switch($type) {
 				case 'image/jpeg':	$sourceImg = imagecreatefromjpeg($url); break;
 				case 'image/png':	$sourceImg = imagecreatefrompng($url); break;
 				case 'image/gif':	$sourceImg = imagecreatefromgif($url); break;
@@ -296,12 +336,12 @@ class Photo extends Module {
 			}
 
 			# Create thumb
-			fastimagecopyresampled($thumb, $sourceImg, 0, 0, $startWidth, $startHeight, $width, $height, $newSize, $newSize);
+			fastimagecopyresampled($thumb, $sourceImg, 0, 0, $startWidth, $startHeight, $newWidth, $newHeight, $newSize, $newSize);
 			imagejpeg($thumb, $newUrl, $this->settings['thumbQuality']);
 			imagedestroy($thumb);
 
 			# Create retina thumb
-			fastimagecopyresampled($thumb2x, $sourceImg, 0, 0, $startWidth, $startHeight, $width*2, $height*2, $newSize, $newSize);
+			fastimagecopyresampled($thumb2x, $sourceImg, 0, 0, $startWidth, $startHeight, $newWidth*2, $newHeight*2, $newSize, $newSize);
 			imagejpeg($thumb2x, $newUrl2x, $this->settings['thumbQuality']);
 			imagedestroy($thumb2x);
 
@@ -317,13 +357,103 @@ class Photo extends Module {
 
 	}
 
+	private function createMedium($url, $filename, $width, $height) {
+
+		# Function creates a smaller version of a photo when its size is bigger than a preset size
+		# Excepts the following:
+		# (string) $url = Path to the photo-file
+		# (string) $filename = Name of the photo-file
+		# (int) $width = Width of the photo
+		# (int) $height = Height of the photo
+		# Returns the following
+		# (boolean) true = Success
+		# (boolean) false = Failure
+
+		# Check dependencies
+		self::dependencies(isset($this->database, $this->settings, $url, $filename, $width, $height));
+
+		# Call plugins
+		$this->plugins(__METHOD__, 0, func_get_args());
+
+		# Set to true when creation of medium-photo failed
+		$error = false;
+
+		# Size of the medium-photo
+		# When changing these values,
+		# also change the size detection in the front-end
+		$newWidth	= 1920;
+		$newHeight	= 1080;
+
+		# Check permissions
+		if (hasPermissions(LYCHEE_UPLOADS_MEDIUM)===false) {
+
+			# Permissions are missing
+			Log::notice($this->database, __METHOD__, __LINE__, 'Skipped creation of medium-photo, because uploads/medium/ is missing or not readable and writable.');
+			$error = true;
+
+		}
+
+		# Is photo big enough?
+		# Is medium activated?
+		# Is Imagick installed and activated?
+		if (($error===false)&&
+			($width>$newWidth||$height>$newHeight)&&
+			($this->settings['medium']==='1')&&
+			(extension_loaded('imagick')&&$this->settings['imagick']==='1')) {
+
+			$newUrl = LYCHEE_UPLOADS_MEDIUM . $filename;
+
+			# Read image
+			$medium = new Imagick();
+			$medium->readImage($url);
+
+			# Adjust image
+			$medium->scaleImage($newWidth, $newHeight, true);
+
+			# Save image
+			try { $medium->writeImage($newUrl); }
+			catch (ImagickException $err) {
+				Log::notice($this->database, __METHOD__, __LINE__, 'Could not save medium-photo: ' . $err->getMessage());
+				$error = true;
+			}
+
+			$medium->clear();
+			$medium->destroy();
+
+		} else {
+
+			# Photo too small or
+			# Medium is deactivated or
+			# Imagick not installed
+			$error = true;
+
+		}
+
+		# Call plugins
+		$this->plugins(__METHOD__, 1, func_get_args());
+
+		if ($error===true) return false;
+		return true;
+
+	}
+
 	public function adjustFile($path, $info) {
+
+		# Function rotates and flips a photo based on its EXIF orientation
+		# Excepts the following:
+		# (string) $path = Path to the photo-file
+		# (array) $info = ['orientation', 'width', 'height']
+		# Returns the following
+		# (array) $info = ['orientation', 'width', 'height'] = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($path, $info));
 
 		# Call plugins
 		$this->plugins(__METHOD__, 0, func_get_args());
+
+		$swapSize = false;
 
 		if (extension_loaded('imagick')&&$this->settings['imagick']==='1') {
 
@@ -333,17 +463,20 @@ class Photo extends Module {
 
 				case 3:
 					$rotateImage = 180;
-					$imageOrientation = 1;
 					break;
 
 				case 6:
-					$rotateImage = 90;
-					$imageOrientation = 1;
+					$rotateImage	= 90;
+					$swapSize		= true;
 					break;
 
 				case 8:
-					$rotateImage = 270;
-					$imageOrientation = 1;
+					$rotateImage	= 270;
+					$swapSize		= true;
+					break;
+
+				default:
+					return false;
 					break;
 
 			}
@@ -352,7 +485,7 @@ class Photo extends Module {
 				$image = new Imagick();
 				$image->readImage($path);
 				$image->rotateImage(new ImagickPixel(), $rotateImage);
-				$image->setImageOrientation($imageOrientation);
+				$image->setImageOrientation(1);
 				$image->writeImage($path);
 				$image->clear();
 				$image->destroy();
@@ -362,7 +495,6 @@ class Photo extends Module {
 
 			$newWidth	= $info['width'];
 			$newHeight	= $info['height'];
-			$process	= false;
 			$sourceImg	= imagecreatefromjpeg($path);
 
 			switch ($info['orientation']) {
@@ -370,6 +502,7 @@ class Photo extends Module {
 				case 2:
 					# mirror
 					# not yet implemented
+					return false;
 					break;
 
 				case 3:
@@ -380,11 +513,13 @@ class Photo extends Module {
 				case 4:
 					# rotate 180 and mirror
 					# not yet implemented
+					return false;
 					break;
 
 				case 5:
 					# rotate 90 and mirror
 					# not yet implemented
+					return false;
 					break;
 
 				case 6:
@@ -392,11 +527,13 @@ class Photo extends Module {
 					$sourceImg	= imagerotate($sourceImg, -90, 0);
 					$newWidth	= $info['height'];
 					$newHeight	= $info['width'];
+					$swapSize	= true;
 					break;
 
 				case 7:
 					# rotate -90 and mirror
 					# not yet implemented
+					return false;
 					break;
 
 				case 8:
@@ -404,34 +541,93 @@ class Photo extends Module {
 					$sourceImg	= imagerotate($sourceImg, 90, 0);
 					$newWidth	= $info['height'];
 					$newHeight	= $info['width'];
+					$swapSize	= true;
+					break;
+
+				default:
+					return false;
 					break;
 
 			}
 
-			# Need to adjust photo?
-			if ($process===true) {
+			# Recreate photo
+			$newSourceImg = imagecreatetruecolor($newWidth, $newHeight);
+			imagecopyresampled($newSourceImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $newWidth, $newHeight);
+			imagejpeg($newSourceImg, $path, 100);
 
-				# Recreate photo
-				$newSourceImg = imagecreatetruecolor($newWidth, $newHeight);
-				imagecopyresampled($newSourceImg, $sourceImg, 0, 0, 0, 0, $newWidth, $newHeight, $newWidth, $newHeight);
-				imagejpeg($newSourceImg, $path, 100);
-
-				# Free memory
-				imagedestroy($sourceImg);
-				imagedestroy($newSourceImg);
-
-			}
+			# Free memory
+			imagedestroy($sourceImg);
+			imagedestroy($newSourceImg);
 
 		}
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		return true;
+		# SwapSize should be true when the image has been rotated
+		# Return new dimensions in this case
+		if ($swapSize===true) {
+			$swapSize		= $info['width'];
+			$info['width']	= $info['height'];
+			$info['height']	= $swapSize;
+		}
+
+		return $info;
+
+	}
+
+	public static function prepareData($data) {
+
+		# Function turns photo-attributes into a front-end friendly format. Note that some attributes remain unchanged.
+		# Excepts the following:
+		# (array) $data = ['id', 'title', 'tags', 'public', 'star', 'album', 'thumbUrl', 'takestamp', 'url']
+		# Returns the following:
+		# (array) $photo
+
+		# Check dependencies
+		self::dependencies(isset($data));
+
+		# Init
+		$photo = null;
+
+		# Set unchanged attributes
+		$photo['id']		= $data['id'];
+		$photo['title']		= $data['title'];
+		$photo['tags']		= $data['tags'];
+		$photo['public']	= $data['public'];
+		$photo['star']		= $data['star'];
+		$photo['album']		= $data['album'];
+
+		# Parse urls
+		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $data['thumbUrl'];
+		$photo['url']		= LYCHEE_URL_UPLOADS_BIG . $data['url'];
+
+		# Use takestamp as sysdate when possible
+		if (isset($data['takestamp'])&&$data['takestamp']!=='0') {
+
+			# Use takestamp
+			$photo['cameraDate']	= '1';
+			$photo['sysdate']		= date('d F Y', $data['takestamp']);
+
+		} else {
+
+			# Use sysstamp from the id
+			$photo['cameraDate']	= '0';
+			$photo['sysdate']		= date('d F Y', substr($data['id'], 0, -4));
+
+		}
+
+		return $photo;
 
 	}
 
 	public function get($albumID) {
+
+		# Functions returns data of a photo
+		# Excepts the following:
+		# (string) $albumID = Album which is currently visible to the user
+		# Returns the following:
+		# (array) $photo
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -448,15 +644,19 @@ class Photo extends Module {
 		$photo['sysdate'] = date('d M. Y', substr($photo['id'], 0, -4));
 		if (strlen($photo['takestamp'])>1) $photo['takedate'] = date('d M. Y', $photo['takestamp']);
 
-		# Parse url
+		# Parse medium
+		if ($photo['medium']==='1')	$photo['medium'] = LYCHEE_URL_UPLOADS_MEDIUM . $photo['url'];
+		else						$photo['medium'] = '';
+
+		# Parse paths
 		$photo['url']		= LYCHEE_URL_UPLOADS_BIG . $photo['url'];
 		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $photo['thumburl'];
 
 		if ($albumID!='false') {
 
-			# Show photo as public when parent album is public
-			# Check if parent album is available and not photo not unsorted
-			if ($photo['album']!=0) {
+			# Only show photo as public when parent album is public
+			# Check if parent album is not 'Unsorted'
+			if ($photo['album']!=='0') {
 
 				# Get album
 				$stmt2	= $this->database->prepare("SELECT public FROM ".LYCHEE_TABLE_ALBUMS." WHERE id = ? LIMIT 1");
@@ -464,7 +664,7 @@ class Photo extends Module {
 				$album	= $stmt2->fetch(PDO::FETCH_ASSOC);
 
 				# Parse album
-				$photo['public'] = ($album['public']=='1' ? '2' : $photo['public']);
+				$photo['public'] = ($album['public']==='1' ? '2' : $photo['public']);
 
 			}
 
@@ -481,6 +681,12 @@ class Photo extends Module {
 	}
 
 	public function getInfo($url) {
+
+		# Functions returns information and metadata of a photo
+		# Excepts the following:
+		# (string) $url = Path to photo-file
+		# Returns the following:
+		# (array) $return
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $url));
@@ -557,10 +763,18 @@ class Photo extends Module {
 			if (isset($temp)) $return['model'] = trim($temp);
 
 			$temp = @$exif['ExposureTime'];
-			if (isset($temp)) $return['shutter'] = $exif['ExposureTime'] . ' Sec.';
+			if (isset($temp)) $return['shutter'] = $exif['ExposureTime'] . ' s';
 
 			$temp = @$exif['FocalLength'];
-			if (isset($temp)) $return['focal'] = ($temp/1) . ' mm';
+			if (isset($temp)) {
+				if (strpos($temp, '/')!==FALSE) {
+					$temp = explode('/', $temp, 2);
+					$temp = $temp[0] / $temp[1];
+					$temp = round($temp, 1);
+					$return['focal'] = $temp . ' mm';
+				}
+				$return['focal'] = $temp . ' mm';
+			}
 
 			$temp = @$exif['DateTimeOriginal'];
 			if (isset($temp)) $return['takestamp'] = strtotime($temp);
@@ -576,6 +790,11 @@ class Photo extends Module {
 
 	public function getArchive() {
 
+		# Functions starts a download of a photo
+		# Returns the following:
+		# (boolean + output) true = Success
+		# (boolean) false = Failure
+
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
 
@@ -586,6 +805,18 @@ class Photo extends Module {
 		$stmt	= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
 		$result = $stmt->execute(array($this->photoIDs));
 		$photo	= $stmt->fetchObject();
+
+		# Error in database query
+		if (!$photos) {
+			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+			return false;
+		}
+
+		# Photo not found
+		if ($photo===null) {
+			Log::error($this->database, __METHOD__, __LINE__, 'Album not found. Cannot start download.');
+			return false;
+		}
 
 		# Get extension
 		$extension = getExtension($photo->url);
@@ -623,6 +854,13 @@ class Photo extends Module {
 
 	public function setTitle($title) {
 
+		# Functions sets the title of a photo
+		# Excepts the following:
+		# (string) $title = Title with a maximum length of 50 chars
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
+
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
 
@@ -630,7 +868,7 @@ class Photo extends Module {
 		$this->plugins(__METHOD__, 0, func_get_args());
 
 		# Parse
-		if (strlen($title)>50) $title = substr($title, 0, 50);
+		if (strlen($title)>100) $title = substr($title, 0, 100);
 
 		# Set title
 		$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET title = ? WHERE id IN (?)");
@@ -648,6 +886,13 @@ class Photo extends Module {
 	}
 
 	public function setDescription($description) {
+
+		# Functions sets the description of a photo
+		# Excepts the following:
+		# (string) $description = Description with a maximum length of 1000 chars
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -675,6 +920,11 @@ class Photo extends Module {
 	}
 
 	public function setStar() {
+
+		# Functions stars a photo
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -715,6 +965,12 @@ class Photo extends Module {
 
 	public function getPublic($password) {
 
+		# Functions checks if photo or parent album is public
+		# Returns the following:
+		# (int) 0 = Photo private and parent album private
+		# (int) 1 = Album public, but password incorrect
+		# (int) 2 = Photo public or album public and password correct
+
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
 
@@ -727,22 +983,40 @@ class Photo extends Module {
 		$photo	= $stmt->fetchObject();
 
 		# Check if public
-		if ($photo->public==1) return true;
-		else {
+		if ($photo->public==='1') {
+
+			# Photo public
+			return 2;
+
+		} else {
+
+			# Check if album public
 			$album	= new Album($this->database, null, null, $photo->album);
-			$acP	= $album->checkPassword($password);
 			$agP	= $album->getPublic();
-			if ($acP===true&&$agP===true) return true;
+			$acP	= $album->checkPassword($password);
+
+			# Album public and password correct
+			if ($agP===true&&$acP===true) return 2;
+
+			# Album public, but password incorrect
+			if ($agP===true&&$acP===false) return 1;
+
 		}
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
 
-		return false;
+		# Photo private
+		return 0;
 
 	}
 
 	public function setPublic() {
+
+		# Functions toggles the public property of a photo
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -775,6 +1049,11 @@ class Photo extends Module {
 
 	function setAlbum($albumID) {
 
+		# Functions sets the parent album of a photo
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
+
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
 
@@ -797,6 +1076,13 @@ class Photo extends Module {
 	}
 
 	public function setTags($tags) {
+
+		# Functions sets the tags of a photo
+		# Excepts the following:
+		# (string) $tags = Comma separated list of tags with a maximum length of 1000 chars
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -828,6 +1114,11 @@ class Photo extends Module {
 	}
 
 	public function duplicate() {
+
+		# Functions duplicates a photo
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
 
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
@@ -867,6 +1158,11 @@ class Photo extends Module {
 
 	public function delete() {
 
+		# Functions deletes a photo with all its data and files
+		# Returns the following:
+		# (boolean) true = Success
+		# (boolean) false = Failure
+
 		# Check dependencies
 		self::dependencies(isset($this->database, $this->photoIDs));
 
@@ -896,6 +1192,12 @@ class Photo extends Module {
 				# Delete big
 				if (file_exists(LYCHEE_UPLOADS_BIG . $photo->url)&&!unlink(LYCHEE_UPLOADS_BIG . $photo->url)) {
 					Log::error($this->database, __METHOD__, __LINE__, 'Could not delete photo in uploads/big/');
+					return false;
+				}
+
+				# Delete medium
+				if (file_exists(LYCHEE_UPLOADS_MEDIUM . $photo->url)&&!unlink(LYCHEE_UPLOADS_MEDIUM . $photo->url)) {
+					Log::error($this->database, __METHOD__, __LINE__, 'Could not delete photo in uploads/medium/');
 					return false;
 				}
 

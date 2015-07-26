@@ -2,8 +2,7 @@
 
 ###
 # @name			Admin Access
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
@@ -16,50 +15,51 @@ class Admin extends Access {
 		switch ($fn) {
 
 			# Album functions
-			case 'getAlbums':			$this->getAlbums(); break;
-			case 'getAlbum':			$this->getAlbum(); break;
-			case 'addAlbum':			$this->addAlbum(); break;
-			case 'setAlbumTitle':		$this->setAlbumTitle(); break;
-			case 'setAlbumDescription':	$this->setAlbumDescription(); break;
-			case 'setAlbumPublic':		$this->setAlbumPublic(); break;
-			case 'deleteAlbum':			$this->deleteAlbum(); break;
+			case 'Album::getAll':			$this->getAlbums(); break;
+			case 'Album::get':				$this->getAlbum(); break;
+			case 'Album::add':				$this->addAlbum(); break;
+			case 'Album::setTitle':			$this->setAlbumTitle(); break;
+			case 'Album::setDescription':	$this->setAlbumDescription(); break;
+			case 'Album::setPublic':		$this->setAlbumPublic(); break;
+			case 'Album::delete':			$this->deleteAlbum(); break;
+			case 'Album::merge':			$this->mergeAlbums(); break;
 
 			# Photo functions
-			case 'getPhoto':			$this->getPhoto(); break;
-			case 'setPhotoTitle':		$this->setPhotoTitle(); break;
-			case 'setPhotoDescription':	$this->setPhotoDescription(); break;
-			case 'setPhotoStar':		$this->setPhotoStar(); break;
-			case 'setPhotoPublic':		$this->setPhotoPublic(); break;
-			case 'setPhotoAlbum':		$this->setPhotoAlbum(); break;
-			case 'setPhotoTags':		$this->setPhotoTags(); break;
-			case 'duplicatePhoto':		$this->duplicatePhoto(); break;
-			case 'deletePhoto':			$this->deletePhoto(); break;
+			case 'Photo::get':				$this->getPhoto(); break;
+			case 'Photo::setTitle':			$this->setPhotoTitle(); break;
+			case 'Photo::setDescription':	$this->setPhotoDescription(); break;
+			case 'Photo::setStar':			$this->setPhotoStar(); break;
+			case 'Photo::setPublic':		$this->setPhotoPublic(); break;
+			case 'Photo::setAlbum':			$this->setPhotoAlbum(); break;
+			case 'Photo::setTags':			$this->setPhotoTags(); break;
+			case 'Photo::duplicate':		$this->duplicatePhoto(); break;
+			case 'Photo::delete':			$this->deletePhoto(); break;
 
 			# Add functions
-			case 'upload':				$this->upload(); break;
-			case 'importUrl':			$this->importUrl(); break;
-			case 'importServer':		$this->importServer(); break;
+			case 'Photo::add':				$this->upload(); break;
+			case 'Import::url':				$this->importUrl(); break;
+			case 'Import::server':			$this->importServer(); break;
 
 			# Search functions
-			case 'search':				$this->search(); break;
+			case 'search':					$this->search(); break;
 
 			# Session functions
-			case 'init':				$this->init(); break;
-			case 'login':				$this->login(); break;
-			case 'logout':				$this->logout(); break;
+			case 'Session::init':			$this->init(); break;
+			case 'Session::login':			$this->login(); break;
+			case 'Session::logout':			$this->logout(); break;
 
 			# Settings functions
-			case 'setLogin':			$this->setLogin(); break;
-			case 'setSorting':			$this->setSorting(); break;
-			case 'setDropboxKey':		$this->setDropboxKey(); break;
+			case 'Settings::setLogin':		$this->setLogin(); break;
+			case 'Settings::setSorting':	$this->setSorting(); break;
+			case 'Settings::setDropboxKey':	$this->setDropboxKey(); break;
 
 			# $_GET functions
-			case 'getAlbumArchive':		$this->getAlbumArchive(); break;
-			case 'getPhotoArchive':		$this->getPhotoArchive(); break;
+			case 'Album::getArchive':		$this->getAlbumArchive(); break;
+			case 'Photo::getArchive':		$this->getPhotoArchive(); break;
 
 			# Error
-			default:					exit('Error: Function not found! Please check the spelling of the called function.');
-										return false; break;
+			default:						exit('Error: Function not found! Please check the spelling of the called function.');
+											return false; break;
 
 		}
 
@@ -112,7 +112,7 @@ class Admin extends Access {
 
 		Module::dependencies(isset($_POST['albumID'], $_POST['password'], $_POST['visible'], $_POST['downloadable']));
 		$album = new Album($this->database, $this->plugins, $this->settings, $_POST['albumID']);
-		echo $album->setPublic($_POST['password'], $_POST['visible'], $_POST['downloadable']);
+		echo $album->setPublic($_POST['public'], $_POST['password'], $_POST['visible'], $_POST['downloadable']);
 
 	}
 
@@ -121,6 +121,14 @@ class Admin extends Access {
 		Module::dependencies(isset($_POST['albumIDs']));
 		$album = new Album($this->database, $this->plugins, $this->settings, $_POST['albumIDs']);
 		echo $album->delete();
+
+	}
+
+	private function mergeAlbums() {
+
+		Module::dependencies(isset($_POST['albumIDs']));
+		$album = new Album($this->database, $this->plugins, $this->settings, $_POST['albumIDs']);
+		echo $album->merge();
 
 	}
 
@@ -211,14 +219,16 @@ class Admin extends Access {
 	private function importUrl() {
 
 		Module::dependencies(isset($_POST['url'], $_POST['albumID']));
-		echo Import::url($_POST['url'], $_POST['albumID']);
+		$import = new Import($this->database, $this->plugins, $this->settings);
+		echo $import->url($_POST['url'], $_POST['albumID']);
 
 	}
 
 	private function importServer() {
 
 		Module::dependencies(isset($_POST['albumID'], $_POST['path']));
-		echo Import::server($_POST['albumID'], $_POST['path']);
+		$import = new Import($this->database, $this->plugins, $this->settings);
+		echo $import->server($_POST['path'], $_POST['albumID']);
 
 	}
 
@@ -271,9 +281,14 @@ class Admin extends Access {
 
 	private function setSorting() {
 
-		Module::dependencies(isset($_POST['type'], $_POST['order']));
+		Module::dependencies(isset($_POST['typeAlbums'], $_POST['orderAlbums'], $_POST['typePhotos'], $_POST['orderPhotos']));
 		$this->settings = new Settings($this->database);
-		echo $this->settings->setSorting($_POST['type'], $_POST['order']);
+
+		$sA = $this->settings->setSortingAlbums($_POST['typeAlbums'], $_POST['orderAlbums']);
+		$sP = $this->settings->setSortingPhotos($_POST['typePhotos'], $_POST['orderPhotos']);
+
+		if ($sA===true&&$sP===true)	echo true;
+		else						echo false;
 
 	}
 

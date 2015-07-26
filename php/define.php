@@ -2,16 +2,20 @@
 
 ###
 # @name			Define
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
 
 # Define root
 define('LYCHEE', substr(__DIR__, 0, -3));
 
+# Define status
+define('LYCHEE_STATUS_NOCONFIG', 0);
+define('LYCHEE_STATUS_LOGGEDOUT', 1);
+define('LYCHEE_STATUS_LOGGEDIN', 2);
+
 # Define dirs
 define('LYCHEE_DATA', LYCHEE . 'data/');
-define('LYCHEE_BUILD', LYCHEE . 'build/');
+define('LYCHEE_SRC', LYCHEE . 'src/');
 define('LYCHEE_UPLOADS', LYCHEE . 'uploads/');
 define('LYCHEE_UPLOADS_BIG', LYCHEE_UPLOADS . 'big/');
 define('LYCHEE_UPLOADS_MEDIUM', LYCHEE_UPLOADS . 'medium/');
@@ -23,8 +27,9 @@ define('LYCHEE_PLUGINS', LYCHEE . 'plugins/');
 define('LYCHEE_CONFIG_FILE', LYCHEE_DATA . 'config.php');
 
 # Define urls
-define('LYCHEE_URL_UPLOADS_THUMB', 'uploads/thumb/');
 define('LYCHEE_URL_UPLOADS_BIG', 'uploads/big/');
+define('LYCHEE_URL_UPLOADS_MEDIUM', 'uploads/medium/');
+define('LYCHEE_URL_UPLOADS_THUMB', 'uploads/thumb/');
 
 function defineTablePrefix($dbTablePrefix) {
 

@@ -1,9 +1,8 @@
 <?php
 
 ###
-# @name		Session Module
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @name			Session Module
+# @copyright	2015 by Tobias Reich
 ###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
@@ -40,33 +39,45 @@ class Session extends Module {
 
 		# Return settings
 		$return['config'] = $this->settings;
+
+		# Remove username and password from response
+		unset($return['config']['username']);
 		unset($return['config']['password']);
+
+		# Remove identifier from response
+		unset($return['config']['identifier']);
 
 		# Path to Lychee for the server-import dialog
 		$return['config']['location'] = LYCHEE;
 
-		# No login
-		if ($this->settings['username']===''&&$this->settings['password']==='') $return['config']['login'] = false;
-		else $return['config']['login'] = true;
+		# Check if login credentials exist and login if they don't
+		if ($this->noLogin()===true) {
+			$public = false;
+			$return['config']['login'] = false;
+		} else {
+			$return['config']['login'] = true;
+		}
 
 		if ($public===false) {
 
 			# Logged in
-			$return['loggedIn'] = true;
+			$return['status'] = LYCHEE_STATUS_LOGGEDIN;
 
 		} else {
 
+			# Logged out
+			$return['status'] = LYCHEE_STATUS_LOGGEDOUT;
+
 			# Unset unused vars
-			unset($return['config']['username']);
 			unset($return['config']['thumbQuality']);
-			unset($return['config']['sorting']);
+			unset($return['config']['sortingAlbums']);
+			unset($return['config']['sortingPhotos']);
 			unset($return['config']['dropboxKey']);
 			unset($return['config']['login']);
 			unset($return['config']['location']);
+			unset($return['config']['imagick']);
+			unset($return['config']['medium']);
 			unset($return['config']['plugins']);
-
-			# Logged out
-			$return['loggedIn'] = false;
 
 		}
 
@@ -85,26 +96,39 @@ class Session extends Module {
 		# Call plugins
 		$this->plugins(__METHOD__, 0, func_get_args());
 
-		# Check login with MD5 hash
-		if ($username===$this->settings['username']&&$password===$this->settings['password']) {
-			$_SESSION['login'] = true;
-			return true;
-		}
+		$username = crypt($username, $this->settings['username']);
+		$password = crypt($password, $this->settings['password']);
 
 		# Check login with crypted hash
-		if ($username===$this->settings['username']&&$this->settings['password']===crypt($password, $this->settings['password'])) {
-			$_SESSION['login'] = true;
-			return true;
+		if ($this->settings['username']===$username&&
+			$this->settings['password']===$password) {
+				$_SESSION['login']		= true;
+				$_SESSION['identifier']	= $this->settings['identifier'];
+				return true;
 		}
 
 		# No login
-		if ($this->settings['username']===''&&$this->settings['password']==='') {
-			$_SESSION['login'] = true;
-			return true;
-		}
+		if ($this->noLogin()===true) return true;
 
 		# Call plugins
 		$this->plugins(__METHOD__, 1, func_get_args());
+
+		return false;
+
+	}
+
+	private function noLogin() {
+
+		# Check dependencies
+		self::dependencies(isset($this->settings));
+
+		# Check if login credentials exist and login if they don't
+		if ($this->settings['username']===''&&
+			$this->settings['password']==='') {
+				$_SESSION['login']		= true;
+				$_SESSION['identifier']	= $this->settings['identifier'];
+				return true;
+		}
 
 		return false;
 
@@ -114,6 +138,9 @@ class Session extends Module {
 
 		# Call plugins
 		$this->plugins(__METHOD__, 0, func_get_args());
+
+		$_SESSION['login']		= null;
+		$_SESSION['identifier']	= null;
 
 		session_destroy();
 

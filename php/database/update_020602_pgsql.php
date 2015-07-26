@@ -2,9 +2,10 @@
 
 ###
 # @name			Update to version 2.6.2
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
+
+if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Add a checksum
 $result = $database->query("SELECT id, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE checksum IS NULL");

@@ -1,9 +1,8 @@
 <?php
 
 ###
-# @name		Plugins Module
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @name			Plugins Module
+# @copyright	2015 by Tobias Reich
 ###
 
 if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');

@@ -2,8 +2,7 @@
 
 ###
 # @name			API
-# @author		Tobias Reich
-# @copyright	2014 by Tobias Reich
+# @copyright	2015 by Tobias Reich
 ###
 
 @ini_set('max_execution_time', '200');
@@ -62,14 +61,15 @@ if (!empty($_POST['function'])||!empty($_GET['function'])) {
 	# Validate parameters
 	if (isset($_POST['albumIDs'])&&preg_match('/^[0-9\,]{1,}$/', $_POST['albumIDs'])!==1)	exit('Error: Wrong parameter type for albumIDs!');
 	if (isset($_POST['photoIDs'])&&preg_match('/^[0-9\,]{1,}$/', $_POST['photoIDs'])!==1)	exit('Error: Wrong parameter type for photoIDs!');
-	if (isset($_POST['albumID'])&&preg_match('/^[0-9sfr]{1,}$/', $_POST['albumID'])!==1)		exit('Error: Wrong parameter type for albumID!');
+	if (isset($_POST['albumID'])&&preg_match('/^[0-9sfr]{1,}$/', $_POST['albumID'])!==1)	exit('Error: Wrong parameter type for albumID!');
 	if (isset($_POST['photoID'])&&preg_match('/^[0-9]{14}$/', $_POST['photoID'])!==1)		exit('Error: Wrong parameter type for photoID!');
 
 	# Function for switch statement
-	if (isset($_POST['function'])) $fn = $_POST['function'];
-	else $fn = $_GET['function'];
+	if (isset($_POST['function']))	$fn = $_POST['function'];
+	else							$fn = $_GET['function'];
 
-	if (isset($_SESSION['login'])&&$_SESSION['login']==true) {
+	if ((isset($_SESSION['login'])&&$_SESSION['login']===true)&&
+		(isset($_SESSION['identifier'])&&$_SESSION['identifier']===$settings['identifier'])) {
 
 		###
 		# Admin Access

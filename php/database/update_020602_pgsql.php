@@ -33,7 +33,7 @@ while ($photo = $result->fetchObject()) {
 }
 
 # Add Imagick
-$query	= $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'imagick' LIMIT 1");
+$result = $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'imagick' LIMIT 1");
 if ($result->rowCount()===0) {
 	$result = $database->exec("INSERT INTO ".LYCHEE_TABLE_SETTINGS." (key, value) VALUES ('imagick', '1')");
 	if (!$result) {

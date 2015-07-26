@@ -9,7 +9,7 @@ if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Change length of photo title
 $result = $database->exec("ALTER TABLE `".LYCHEE_TABLE_PHOTOS."` CHANGE `title` `title` VARCHAR( 100 ) NOT NULL DEFAULT ''");
-if ($result === FALSE) {
+if ($result === FALSE) {
 	Log::error($database, 'update_030001', __LINE__, 'Could not update database (' . print_r($database->errorInfo(), TRUE) . ')');
 	return false;
 }

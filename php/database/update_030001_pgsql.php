@@ -9,12 +9,12 @@ if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Change length of photo title
 $result = $database->exec("ALTER TABLE ".LYCHEE_TABLE_PHOTOS." ALTER title TYPE CHARACTER VARYING(100)");
-if ($result === FALSE) {
+if ($result === FALSE) {
 	Log::error($database, 'update_030001', __LINE__, 'Could not update database (' . print_r($database->errorInfo(), TRUE) . ')');
 	return false;
 }
 $result = $database->exec("ALTER TABLE ".LYCHEE_TABLE_PHOTOS." ALTER title SET DEFAULT ''");
-if ($result === FALSE) {
+if ($result === FALSE) {
 	Log::error($database, 'update_030001', __LINE__, 'Could not update database (' . print_r($database->errorInfo(), TRUE) . ')');
 	return false;
 }
@@ -32,7 +32,7 @@ if ($result === FALSE) {
 }
 
 # Add album sorting to settings
-$result = $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'sortingAlbums' LIMIT 1");
+$result = $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'sortingAlbums'");
 if ($result->rowCount()===0) {
 	$result = $database->exec("INSERT INTO ".LYCHEE_TABLE_SETTINGS." (key, value) VALUES ('sortingAlbums', 'ORDER BY id DESC')");
 	if ($result === FALSE) {
@@ -42,14 +42,14 @@ if ($result->rowCount()===0) {
 }
 
 # Rename sorting to sortingPhotos
-$result = $database->exec("UPDATE ".LYCHEE_TABLE_SETTINGS." SET key = 'sortingPhotos' WHERE key = 'sorting' LIMIT 1");
+$result = $database->exec("UPDATE ".LYCHEE_TABLE_SETTINGS." SET key = 'sortingPhotos' WHERE key = 'sorting'");
 if ($result === FALSE) {
 	Log::error($database, 'update_030001', __LINE__, 'Could not update database (' . print_r($database->errorInfo(), TRUE) . ')');
 	return false;
 }
 
 # Add identifier to settings
-$result = $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'identifier' LIMIT 1");
+$result = $database->query("SELECT key FROM ".LYCHEE_TABLE_SETTINGS." WHERE key = 'identifier'");
 if ($result->rowCount()===0) {
 	$identifier	= md5(microtime(true));
 	$stmt		= $database->prepare("INSERT INTO ".LYCHEE_TABLE_SETTINGS." (key, value) VALUES ('identifier', ?)");

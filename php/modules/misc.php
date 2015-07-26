@@ -72,7 +72,7 @@ function search($database, $settings, $term) {
 
 		// Thumbs
 		$stmtT		= $database->prepare("SELECT thumburl FROM ".LYCHEE_TABLE_PHOTOS." WHERE album = ? " . $settings['sortingPhotos'] . " LIMIT 3 OFFSET 0");
-		$result2    = $stmtT->execute(array($album['id']);
+		$result2    = $stmtT->execute(array($album['id']));
 		$k			= 0;
 		while($thumb = $stmtT->fetchObject()){
 			$album['thumbs'][$k] = LYCHEE_URL_UPLOADS_THUMB . $thumb->thumbUrl;

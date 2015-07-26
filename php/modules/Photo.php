@@ -91,7 +91,7 @@ class Photo extends Module {
 			# Verify extension
 			$extension = getExtension($file['name']);
 			if (!in_array(strtolower($extension), Photo::$validExtensions, true)) {
-				Log::error($this->database, __METHOD__, __LINE__, 'Photo format not supported');
+				Log::error($this->database, __METHOD__, __LINE__, 'Photo format not supported: '.$extension.' (not in'.implode(' ',Photo::$validExtensions).')');
 				if ($returnOnError===true) return false;
 				exit('Error: Photo format not supported!');
 			}
@@ -99,7 +99,7 @@ class Photo extends Module {
 			# Verify image
 			$type = @exif_imagetype($file['tmp_name']);
 			if (!in_array($type, Photo::$validTypes, true)) {
-				Log::error($this->database, __METHOD__, __LINE__, 'Photo type not supported');
+				Log::error($this->database, __METHOD__, __LINE__, 'Photo type not supported: '.$type.' (not in '.implode(' ',Photo::$validTypes).')');
 				if ($returnOnError===true) return false;
 				exit('Error: Photo type not supported!');
 			}
@@ -256,7 +256,7 @@ class Photo extends Module {
 			$return = array(
 				'photo_name'	=> $result->url,
 				'path'			=> LYCHEE_UPLOADS_BIG . $result->url,
-				'path_thumb'	=> $result->thumbUrl,
+				'path_thumb'	=> $result->thumburl,
 				'medium'		=> $result->medium
 			);
 
@@ -599,7 +599,7 @@ class Photo extends Module {
 		$photo['album']		= $data['album'];
 
 		# Parse urls
-		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $data['thumbUrl'];
+		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $data['thumburl'];
 		$photo['url']		= LYCHEE_URL_UPLOADS_BIG . $data['url'];
 
 		# Use takestamp as sysdate when possible
@@ -652,6 +652,9 @@ class Photo extends Module {
 		$photo['url']		= LYCHEE_URL_UPLOADS_BIG . $photo['url'];
 		$photo['thumbUrl']	= LYCHEE_URL_UPLOADS_THUMB . $photo['thumburl'];
 
+		# fix star
+		$photo['star'] = $photo['star'] == 1 ? '1' : '0';
+
 		if ($albumID!='false') {
 
 			# Only show photo as public when parent album is public
@@ -664,7 +667,7 @@ class Photo extends Module {
 				$album	= $stmt2->fetch(PDO::FETCH_ASSOC);
 
 				# Parse album
-				$photo['public'] = ($album['public']==='1' ? '2' : $photo['public']);
+				$photo['public'] = ($album['public']=='1' ? '2' : ($photo['public'] == '1' ? '1': '0'));
 
 			}
 
@@ -804,13 +807,14 @@ class Photo extends Module {
 		# Get photo
 		$stmt	= $this->database->prepare("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id = ? LIMIT 1");
 		$result = $stmt->execute(array($this->photoIDs));
-		$photo	= $stmt->fetchObject();
 
 		# Error in database query
-		if (!$photos) {
-			Log::error($this->database, __METHOD__, __LINE__, $this->database->error);
+		if ($result === FALSE) {
+			Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 			return false;
 		}
+
+		$photo	= $stmt->fetchObject();
 
 		# Photo not found
 		if ($photo===null) {
@@ -965,6 +969,8 @@ class Photo extends Module {
 
 	public function getPublic($password) {
 
+		Log::notice($this->database, __METHOD__, __LINE__, "Checking public for ".$this->photoIDs);
+
 		# Functions checks if photo or parent album is public
 		# Returns the following:
 		# (int) 0 = Photo private and parent album private
@@ -983,7 +989,7 @@ class Photo extends Module {
 		$photo	= $stmt->fetchObject();
 
 		# Check if public
-		if ($photo->public==='1') {
+		if ($photo->public==1) {
 
 			# Photo public
 			return 2;

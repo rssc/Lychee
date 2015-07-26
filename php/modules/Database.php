@@ -27,11 +27,14 @@ class Database extends Module {
 		#if ($database->connect_errno) exit('Error: ' . $database->connect_error);
 
 		# Avoid sql injection on older MySQL versions by using GBK
-		if ($database->server_version<50500) @$database->set_charset('GBK');
-		else @$database->set_charset('utf8');
+		#if ($database->server_version<50500) @$database->set_charset('GBK');
+		#else @$database->set_charset('utf8');
 
 		# Set unicode
-		$database->query('SET NAMES utf8;');
+		if ($type === "mysql")
+		{
+			$database->query('SET NAMES utf8;');
+		}
 
 		# Check database
 		#if (!$database->select_db($name))
@@ -93,11 +96,31 @@ class Database extends Module {
 
 	}
 
-	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '', $type = 'mysql') {
+	static function createConfig($host = 'localhost', $user, $password, $name = 'lychee', $prefix = '', $type = 'pgsql') {
 
 		# Check dependencies
 		Module::dependencies(isset($host, $user, $password, $name));
 
+		try
+		{
+			if ($type == 'mysql') {
+				$database_create = new PDO($type.":host=localhost", $user, $password);
+			} else if ($type == 'pgsql') {
+				$database_create = new PDO($type.":host=localhost;dbname='template1'", $user, $password);
+			} else {
+				exit ('Warning: Unknown database type: '.$type);
+			}
+		}
+		catch (PDOException $e)
+		{
+			exit ('Warning: Connection to create DB failed: '.$e->getMessage());
+		}
+
+		# Check if user can create the database, and whether it exists
+		$result = Database::createDatabase($database_create, $name);
+		if ($result===false) return 'Warning: Creation failed!';
+
+		# connect to newly created database
 		try
 		{
 			$database = new PDO($type.':host=localhost;dbname='.$name, $user, $password);
@@ -106,16 +129,6 @@ class Database extends Module {
 		{
 			exit ('Warning: Connection failed: '.$e->getMessage());
 		}
-
-		#if ($database->connect_errno) return 'Warning: Connection failed!';
-
-		# Check if database exists
-		#if (!$database->select_db($name)) {
-
-			# Database doesn't exist
-			# Check if user can create the database
-			$result = Database::createDatabase($database, $name);
-			if ($result===false) return 'Warning: Creation failed!';
 
 		#}
 
@@ -139,7 +152,7 @@ $config = "<?php
 if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 
 # Database configuration
-\$dbType = 'mysql'; # Database type (mysql / pgsql)
+\$dbType = '$type'; # Database type (mysql / pgsql)
 \$dbHost = $host; # Host of the database
 \$dbUser = $user; # Username of the database
 \$dbPassword = $password; # Password of the database
@@ -160,20 +173,43 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 		# Check dependencies
 		Module::dependencies(isset($database, $name));
 
-		# not implemented
-		return false;
-
 		# Create database
-		# FIXME
-		#$result = $database->query("CREATE DATABASE IF NOT EXISTS $name;");
+		if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+		{
+			$query = "CREATE DATABASE IF NOT EXISTS $name;";
+		}
+		else if ($database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
+		{
+			# check if database exists
+			$query = "SELECT 1 FROM pg_database WHERE datname = '$name'";
+			$result = $database->query($query);
+			if ($result->rowCount() > 0) {
+				# database exists
+				return true;
+			}
+			# database does not exist
+			$query = "CREATE DATABASE $name ENCODING 'utf8'";
+		}
+		else
+		{
+			error_log('Unknown database driver: ' . $database->getAttribute(PDO::ATTR_DRIVER_NAME));
+			return false;
+		}
+
+		$result = $database->exec($query);
+
+		if ($result === FALSE) {
+			error_log('Cannot create database: ' . print_r($database->errorInfo(), TRUE));
+			return false;
+		}
 		#$database->select_db($name);
 
 		#if (!$database->select_db($name)||!$result) return false;
-		#return true;
+		return true;
 
 	}
 
-	static function createTables($database, $type='pgsql') {
+	static function createTables($database, $type='mysql') {
 
 		# Check dependencies
 		Module::dependencies(isset($database));
@@ -220,9 +256,10 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			$result = $database->exec($query);
 			if ($result === FALSE)
 			{
-				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+				Log::error($database, __METHOD__, __LINE__, print_r($database->errorInfo(), TRUE));
 				return false;
 			}
+			Log::notice($database, __METHOD__,__LINE__, "Created settings table.");
 
 			# Read file
 			$file	= __DIR__ . '/../database/settings_content_'.$type.'.sql';
@@ -238,15 +275,21 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			$result = $database->exec($query);
 			if ($result === FALSE)
 			{
-				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+				Log::error($database, __METHOD__, __LINE__, "Could not create settings table: " . print_r($database->errorInfo(), TRUE));
 				return false;
 			}
+			Log::notice($database, __METHOD__,__LINE__, "Added content to settings table.");
 
 			# Generate identifier
 			$identifier	= md5(microtime(true));
-			$query		= Database::prepare($database, "UPDATE `?` SET `value` = '?' WHERE `key` = 'identifier' LIMIT 1", array(LYCHEE_TABLE_SETTINGS, $identifier));
-			if (!$database->query($query)) {
-				Log::error($database, __METHOD__, __LINE__, $database->error);
+			$stmt = $database->prepare("UPDATE ".LYCHEE_TABLE_SETTINGS." SET value = ? WHERE key = 'identifier'");
+			if (!$stmt) {
+				Log::error($database, __METHOD__, __LINE__, "Could not prepare statement: " . print_r($database->errorInfo(), TRUE));
+				return false;
+			}
+			$result = $stmt->execute(array($identifier));
+			if ($result === FALSE) {
+				Log::error($database, __METHOD__, __LINE__, print_r($stmt->errorInfo(), TRUE));
 				return false;
 			}
 
@@ -271,7 +314,7 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			$result = $database->exec($query);
 			if ($result === FALSE)
 			{
-				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+				Log::error($database, __METHOD__, __LINE__, print_r($database->errorInfo(), TRUE));
 				return false;
 			}
 
@@ -296,7 +339,7 @@ if(!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
 			$result = $database->exec($query);
 			if ($result === FALSE)
 			{
-				Log::error($database, __METHOD__, __LINE__, $database->errorInfo());
+				Log::error($database, __METHOD__, __LINE__, print_r($database->errorInfo(), TRUE));
 				return false;
 			}
 

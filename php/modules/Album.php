@@ -125,7 +125,7 @@ class Album extends Module {
 						}
 						else if ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
 						{
-							$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sortingPhotos']);
+							$photos = $this->database->query("SELECT id, title, tags, public, star, album, thumburl, takestamp, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*10000 " . $this->settings['sortingPhotos']);
 						}
 						else
 						{
@@ -368,7 +368,7 @@ class Album extends Module {
 		}
 		elseif ($this->database->getAttribute(PDO::ATTR_DRIVER_NAME) == 'pgsql')
 		{
-			$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000 " . $this->settings['sortingPhotos']);
+			$recent		= $this->database->query('SELECT thumburl FROM '.LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*10000 " . $this->settings['sortingPhotos']);
 		}
 		else
 		{
@@ -420,7 +420,7 @@ class Album extends Module {
 				break;
 			case 'r':
 				# FIXME: GROUP BY checksum??
-				$photos		= $this->database->query("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*1000"); // GROUP BY checksum");
+				$photos		= $this->database->query("SELECT title, url FROM ".LYCHEE_TABLE_PHOTOS." WHERE id >= extract(epoch FROM NOW() - INTERVAL '1' DAY)*10000"); // GROUP BY checksum");
 				$zipTitle	= 'Recent';
 				break;
 			default:
@@ -663,7 +663,7 @@ class Album extends Module {
 		if ($public===1) {
 			$stmt	= $this->database->prepare("UPDATE ".LYCHEE_TABLE_PHOTOS." SET public = 0 WHERE album IN (?)");
 			$result = $stmt->execute(array($this->albumIDs));
-			if ($result === FALSE) {
+			if ($result === FALSE) {
 				Log::error($this->database, __METHOD__, __LINE__, print_r($this->database->errorInfo(), TRUE));
 				return false;
 			}
